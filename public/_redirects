@@ -1,0 +1,7 @@
+# Netlify redirects - processed top to bottom, first match wins
+# Static assets - no redirect
+/sounds/*  /sounds/:splat  200
+/assets/*  /assets/:splat  200
+
+# SPA fallback
+/*  /index.html  200
