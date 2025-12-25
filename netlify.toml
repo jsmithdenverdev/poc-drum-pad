@@ -2,11 +2,6 @@
   command = "npm run build"
   publish = "dist"
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
 [[headers]]
   for = "/sounds/*"
   [headers.values]
@@ -18,3 +13,10 @@
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
+
+# SPA fallback - force=false means static files take priority
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
