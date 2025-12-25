@@ -81,9 +81,17 @@ class AudioEngine {
   }
 
   play(soundId: string): void {
+    console.log(`Play called: ${soundId}`)
+
     if (!this.context || !this.gainNode) {
       console.warn('Audio engine not initialized')
       return
+    }
+
+    // Check if context is suspended (iOS)
+    if (this.context.state === 'suspended') {
+      console.log('Resuming suspended audio context')
+      this.context.resume()
     }
 
     const buffer = this.buffers.get(soundId)
@@ -92,6 +100,7 @@ class AudioEngine {
       return
     }
 
+    console.log(`Playing ${soundId}: ${buffer.duration.toFixed(2)}s, ctx state: ${this.context.state}`)
     const source = this.context.createBufferSource()
     source.buffer = buffer
     source.connect(this.gainNode)
