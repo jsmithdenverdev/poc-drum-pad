@@ -51,15 +51,21 @@ class AudioEngine {
     const loadPromises = sounds.map(async (sound) => {
       try {
         const response = await fetch(sound.url)
+        if (!response.ok) {
+          console.error(`Failed to fetch ${sound.url}: ${response.status}`)
+          return
+        }
         const arrayBuffer = await response.arrayBuffer()
         const audioBuffer = await this.context!.decodeAudioData(arrayBuffer)
         this.buffers.set(sound.id, audioBuffer)
+        console.log(`Loaded: ${sound.name}`)
       } catch (error) {
-        console.warn(`Failed to load sound: ${sound.name}`, error)
+        console.error(`Failed to load sound: ${sound.name}`, error)
       }
     })
 
     await Promise.all(loadPromises)
+    console.log(`Audio buffers loaded: ${this.buffers.size}/${sounds.length}`)
   }
 
   play(soundId: string): void {
