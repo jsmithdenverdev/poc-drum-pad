@@ -51,16 +51,28 @@ class AudioEngine {
     const loadPromises = sounds.map(async (sound) => {
       try {
         const response = await fetch(sound.url)
+        const contentType = response.headers.get('content-type') || 'unknown'
+        console.log(`Fetch ${sound.name}: ${response.status} (${contentType})`)
+
         if (!response.ok) {
           console.error(`Failed to fetch ${sound.url}: ${response.status}`)
           return
         }
+
+        if (!contentType.includes('audio')) {
+          console.error(`Wrong content-type for ${sound.name}: ${contentType}`)
+          return
+        }
+
         const arrayBuffer = await response.arrayBuffer()
+        console.log(`${sound.name} size: ${arrayBuffer.byteLength} bytes`)
+
         const audioBuffer = await this.context!.decodeAudioData(arrayBuffer)
         this.buffers.set(sound.id, audioBuffer)
         console.log(`Loaded: ${sound.name}`)
       } catch (error) {
-        console.error(`Failed to load sound: ${sound.name}`, error)
+        const msg = error instanceof Error ? error.message : String(error)
+        console.error(`Failed to load ${sound.name}: ${msg}`)
       }
     })
 
