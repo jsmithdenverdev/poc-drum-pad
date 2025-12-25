@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { Bug, X, Trash2, Copy, Check } from 'lucide-react'
+import { Bug, X, Trash2, Copy, Check, Volume2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { audioEngine } from '@/audio/audio-engine'
 
 interface LogEntry {
   type: 'log' | 'warn' | 'error'
@@ -87,6 +88,9 @@ export function DebugDrawer() {
           <div className="flex items-center justify-between p-4 border-b border-border">
             <h2 className="text-lg font-bold">Debug Logs</h2>
             <div className="flex gap-2">
+              <Button variant="ghost" size="icon" onClick={() => audioEngine.playTestTone()} title="Test Tone">
+                <Volume2 className="w-4 h-4" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={copyLogs}>
                 {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
               </Button>

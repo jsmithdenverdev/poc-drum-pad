@@ -100,11 +100,26 @@ class AudioEngine {
       return
     }
 
-    console.log(`Playing ${soundId}: ${buffer.duration.toFixed(2)}s, ctx state: ${this.context.state}`)
+    console.log(`Playing ${soundId}: ${buffer.duration.toFixed(2)}s, ctx state: ${this.context.state}, gain: ${this.gainNode.gain.value}`)
     const source = this.context.createBufferSource()
     source.buffer = buffer
     source.connect(this.gainNode)
     source.start(0)
+  }
+
+  // Test tone to verify audio output works
+  playTestTone(): void {
+    if (!this.context || !this.gainNode) {
+      console.warn('Cannot play test tone - not initialized')
+      return
+    }
+    console.log('Playing test tone...')
+    const oscillator = this.context.createOscillator()
+    oscillator.type = 'sine'
+    oscillator.frequency.value = 440
+    oscillator.connect(this.gainNode)
+    oscillator.start()
+    oscillator.stop(this.context.currentTime + 0.2)
   }
 
   setVolume(volume: number): void {
