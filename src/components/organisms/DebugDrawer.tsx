@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Bug, X, Trash2 } from 'lucide-react'
+import { Bug, X, Trash2, Copy, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -12,6 +12,7 @@ interface LogEntry {
 export function DebugDrawer() {
   const [isOpen, setIsOpen] = useState(false)
   const [logs, setLogs] = useState<LogEntry[]>([])
+  const [copied, setCopied] = useState(false)
   const logsEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -57,6 +58,16 @@ export function DebugDrawer() {
     }
   }, [logs, isOpen])
 
+  const copyLogs = async () => {
+    const text = logs
+      .map(l => `[${l.timestamp.toLocaleTimeString()}] [${l.type.toUpperCase()}] ${l.message}`)
+      .join('\n')
+
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   return (
     <>
       <Button
@@ -76,6 +87,9 @@ export function DebugDrawer() {
           <div className="flex items-center justify-between p-4 border-b border-border">
             <h2 className="text-lg font-bold">Debug Logs</h2>
             <div className="flex gap-2">
+              <Button variant="ghost" size="icon" onClick={copyLogs}>
+                {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => setLogs([])}>
                 <Trash2 className="w-4 h-4" />
               </Button>

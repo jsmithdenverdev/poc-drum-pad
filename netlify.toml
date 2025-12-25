@@ -6,7 +6,6 @@
   for = "/sounds/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
-    Content-Type = "audio/wav"
 
 [[headers]]
   for = "/*"
@@ -15,19 +14,4 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
 
-# Let static assets pass through (200! = force)
-[[redirects]]
-  from = "/sounds/*"
-  to = "/sounds/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/assets/*"
-  to = "/assets/:splat"
-  status = 200
-
-# SPA fallback for everything else
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# Redirects handled in public/_redirects file
