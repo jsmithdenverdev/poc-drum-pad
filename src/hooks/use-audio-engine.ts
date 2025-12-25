@@ -24,12 +24,17 @@ export function useAudioEngine(sounds: DrumSound[]) {
     audioEngine.setVolume(volume)
   }, [])
 
+  const playTestTone = useCallback(() => {
+    audioEngine.playTestTone()
+  }, [])
+
   return {
     state,
     isInitialized,
     init,
     play,
     setVolume,
+    playTestTone,
     isReady: state === 'ready',
     isLoading: state === 'loading',
     needsInit: state === 'uninitialized',
