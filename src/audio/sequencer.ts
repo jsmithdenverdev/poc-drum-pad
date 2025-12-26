@@ -10,11 +10,22 @@ class Sequencer {
   private nextStepTime = 0
   private schedulerTimer: number | null = null
   private stepCallbacks: Set<SequencerCallback> = new Set()
+  private stopCallbacks: Set<() => void> = new Set()
 
   // How far ahead to schedule audio (seconds)
   private readonly scheduleAhead = 0.1
   // How often to check for notes to schedule (milliseconds)
   private readonly lookAhead = 25
+
+  constructor() {
+    // Stop sequencer when page becomes hidden (phone locked, tab switched)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' && this.isPlaying) {
+        console.log('Page hidden, stopping sequencer')
+        this.stop()
+      }
+    })
+  }
 
   get playing(): boolean {
     return this.isPlaying
@@ -33,8 +44,19 @@ class Sequencer {
     return () => this.stepCallbacks.delete(callback)
   }
 
+  onStop(callback: () => void): () => void {
+    this.stopCallbacks.add(callback)
+    return () => this.stopCallbacks.delete(callback)
+  }
+
   start(): void {
     if (this.isPlaying || !this.pattern) return
+
+    // Don't start if audio is suspended
+    if (audioEngine.isSuspended) {
+      console.log('Cannot start sequencer - audio context suspended')
+      return
+    }
 
     this.isPlaying = true
     this.currentStep = 0
@@ -50,10 +72,18 @@ class Sequencer {
       this.schedulerTimer = null
     }
     this.stepCallbacks.forEach(cb => cb(0))
+    this.stopCallbacks.forEach(cb => cb())
   }
 
   private scheduler(): void {
     if (!this.isPlaying || !this.pattern) return
+
+    // Stop if audio context became suspended
+    if (audioEngine.isSuspended) {
+      console.log('Audio context suspended, stopping sequencer')
+      this.stop()
+      return
+    }
 
     const currentTime = audioEngine.getCurrentTime()
 
