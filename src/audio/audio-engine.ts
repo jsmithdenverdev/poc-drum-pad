@@ -67,16 +67,32 @@ class AudioEngine {
 
     if (this.context.state === 'suspended') {
       console.log('Resuming suspended audio context...')
-      await this.context.resume()
-      console.log(`Audio context resumed: ${this.context.state}`)
-      this.resumeListeners.forEach(listener => listener())
-      return true
+      try {
+        await this.context.resume()
+        // Wait a small amount of time for the context to fully resume
+        await new Promise(resolve => setTimeout(resolve, 50))
+      } catch (error) {
+        console.error('Failed to resume audio context:', error)
+        return false
+      }
     }
-    return false
+
+    const isRunning = this.context.state === 'running'
+    console.log(`Audio context state after resume: ${this.context.state}`)
+
+    if (isRunning) {
+      this.resumeListeners.forEach(listener => listener())
+    }
+
+    return isRunning
   }
 
   get isSuspended(): boolean {
     return this.context?.state === 'suspended'
+  }
+
+  get isRunning(): boolean {
+    return this.context?.state === 'running'
   }
 
   private async loadSounds(sounds: DrumSound[]): Promise<void> {
@@ -121,7 +137,13 @@ class AudioEngine {
     // Resume if suspended (iOS / backgrounded)
     if (this.context.state === 'suspended') {
       console.log('Resuming suspended audio context before play')
-      await this.context.resume()
+      await this.resume()
+    }
+
+    // Double-check we're in running state
+    if (this.context.state !== 'running') {
+      console.warn(`Cannot play - context state is: ${this.context.state}`)
+      return
     }
 
     const buffer = this.buffers.get(soundId)
@@ -130,10 +152,14 @@ class AudioEngine {
       return
     }
 
-    const source = this.context.createBufferSource()
-    source.buffer = buffer
-    source.connect(this.gainNode)
-    source.start(0)
+    try {
+      const source = this.context.createBufferSource()
+      source.buffer = buffer
+      source.connect(this.gainNode)
+      source.start(0)
+    } catch (error) {
+      console.error(`Error playing sound ${soundId}:`, error)
+    }
   }
 
   // Test tone to verify audio output works

@@ -28,9 +28,12 @@ export function useSequencer(initialPattern: SequencerPattern | null) {
     })
   }, [])
 
-  const start = useCallback(() => {
-    sequencer.start()
-    setIsPlaying(true)
+  const start = useCallback(async () => {
+    const started = await sequencer.start()
+    if (started) {
+      setIsPlaying(true)
+    }
+    return started
   }, [])
 
   const stop = useCallback(() => {
@@ -39,11 +42,11 @@ export function useSequencer(initialPattern: SequencerPattern | null) {
     setCurrentStep(0)
   }, [])
 
-  const toggle = useCallback(() => {
+  const toggle = useCallback(async () => {
     if (isPlaying) {
       stop()
     } else {
-      start()
+      await start()
     }
   }, [isPlaying, start, stop])
 

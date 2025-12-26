@@ -49,19 +49,32 @@ class Sequencer {
     return () => this.stopCallbacks.delete(callback)
   }
 
-  start(): void {
-    if (this.isPlaying || !this.pattern) return
+  async start(): Promise<boolean> {
+    if (this.isPlaying || !this.pattern) return false
 
-    // Don't start if audio is suspended
+    // Try to resume audio if suspended
     if (audioEngine.isSuspended) {
-      console.log('Cannot start sequencer - audio context suspended')
-      return
+      console.log('Audio suspended, attempting to resume before starting sequencer...')
+      const resumed = await audioEngine.resume()
+      if (!resumed) {
+        console.log('Cannot start sequencer - failed to resume audio')
+        return false
+      }
+    }
+
+    // Double-check audio is running
+    if (!audioEngine.isRunning) {
+      console.log('Cannot start sequencer - audio not running')
+      return false
     }
 
     this.isPlaying = true
     this.currentStep = 0
+    // Get fresh current time after ensuring audio is running
     this.nextStepTime = audioEngine.getCurrentTime()
+    console.log(`Sequencer starting at time: ${this.nextStepTime}`)
     this.scheduler()
+    return true
   }
 
   stop(): void {

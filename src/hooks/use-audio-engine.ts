@@ -13,10 +13,18 @@ export function useAudioEngine(sounds: DrumSound[]) {
 
   // Track visibility changes to detect when app is backgrounded/foregrounded
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
         // Check if audio context got suspended while hidden
-        setIsSuspended(audioEngine.isSuspended)
+        const suspended = audioEngine.isSuspended
+        setIsSuspended(suspended)
+
+        // Try to resume immediately - this may work if there's a pending user gesture
+        if (suspended) {
+          console.log('Page visible, attempting to resume audio...')
+          await audioEngine.resume()
+          setIsSuspended(audioEngine.isSuspended)
+        }
       }
     }
 
