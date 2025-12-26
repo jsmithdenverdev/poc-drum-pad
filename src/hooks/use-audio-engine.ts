@@ -47,6 +47,12 @@ export function useAudioEngine(sounds: DrumSound[]) {
     setIsSuspended(false)
   }, [])
 
+  const playSynth = useCallback(async (noteId: string) => {
+    await audioEngine.playSynth(noteId)
+    // After playing, we're no longer suspended
+    setIsSuspended(false)
+  }, [])
+
   const resume = useCallback(async () => {
     const wasResumed = await audioEngine.resume()
     if (wasResumed) {
@@ -69,6 +75,7 @@ export function useAudioEngine(sounds: DrumSound[]) {
     isSuspended,
     init,
     play,
+    playSynth,
     resume,
     setVolume,
     playTestTone,

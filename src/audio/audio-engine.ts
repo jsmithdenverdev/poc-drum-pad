@@ -1,4 +1,5 @@
 import type { DrumSound, AudioEngineState } from '@/types/audio.types'
+import { synthEngine } from './synth-engine'
 
 class AudioEngine {
   private context: AudioContext | null = null
@@ -53,6 +54,10 @@ class AudioEngine {
       }
 
       await this.loadSounds(sounds)
+
+      // Initialize synth engine with the audio context
+      synthEngine.setContext(this.context, this.gainNode)
+
       this.setState('ready')
     } catch (error) {
       console.error('Failed to initialize audio engine:', error)
@@ -187,12 +192,37 @@ class AudioEngine {
     return this.gainNode?.gain.value ?? 1
   }
 
+  // Play a synth note immediately
+  async playSynth(noteId: string): Promise<void> {
+    if (!this.context || !this.gainNode) {
+      console.warn('Audio engine not initialized')
+      return
+    }
+
+    // Resume if suspended (iOS / backgrounded)
+    if (this.context.state === 'suspended') {
+      await this.resume()
+    }
+
+    if (this.context.state !== 'running') {
+      console.warn(`Cannot play synth - context state is: ${this.context.state}`)
+      return
+    }
+
+    synthEngine.playNote(noteId)
+  }
+
   // Schedule a sound to play at a specific time (for sequencer)
-  schedulePlay(soundId: string, time: number): void {
+  schedulePlay(soundId: string, time: number, isSynth: boolean = false): void {
     if (!this.context || !this.gainNode) return
 
     // Don't schedule if context is suspended - sequencer should stop
     if (this.context.state === 'suspended') return
+
+    if (isSynth) {
+      synthEngine.scheduleNote(soundId, time)
+      return
+    }
 
     const buffer = this.buffers.get(soundId)
     if (!buffer) return
