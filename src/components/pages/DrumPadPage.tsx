@@ -1,11 +1,13 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { LandscapeLayout } from '@/components/templates/LandscapeLayout'
 import { DrumPadGrid } from '@/components/organisms/DrumPadGrid'
+import { Sequencer } from '@/components/organisms/Sequencer'
 import { TransportControls } from '@/components/molecules/TransportControls'
 import { useAudioEngine } from '@/hooks/use-audio-engine'
 import { useSequencer } from '@/hooks/use-sequencer'
 import type { DrumSound, SequencerPattern } from '@/types/audio.types'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { Volume2 } from 'lucide-react'
 import { soundUrls } from '@/audio/sounds'
 
@@ -32,8 +34,9 @@ const DEFAULT_PATTERN: SequencerPattern = {
 }
 
 export function DrumPadPage() {
+  const [showSequencer, setShowSequencer] = useState(false)
   const { init, play, needsInit, isLoading } = useAudioEngine(DEFAULT_SOUNDS)
-  const { isPlaying, bpm, toggle, setBpm } = useSequencer(DEFAULT_PATTERN)
+  const { isPlaying, currentStep, bpm, pattern, toggle, setBpm, toggleStep } = useSequencer(DEFAULT_PATTERN)
 
   const handleTrigger = useCallback((soundId: string) => {
     play(soundId)
@@ -76,19 +79,60 @@ export function DrumPadPage() {
       header={
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold">Drum Pad</h1>
-          <TransportControls
-            isPlaying={isPlaying}
-            bpm={bpm}
-            onToggle={toggle}
-            onBpmChange={setBpm}
-          />
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="sequencer-toggle"
+                className="text-sm text-muted-foreground"
+              >
+                Sequencer
+              </label>
+              <Switch
+                id="sequencer-toggle"
+                checked={showSequencer}
+                onCheckedChange={setShowSequencer}
+              />
+            </div>
+            <TransportControls
+              isPlaying={isPlaying}
+              bpm={bpm}
+              onToggle={toggle}
+              onBpmChange={setBpm}
+            />
+          </div>
         </div>
       }
     >
-      <DrumPadGrid
-        sounds={DEFAULT_SOUNDS}
-        onTrigger={handleTrigger}
-      />
+      {showSequencer ? (
+        <div className="flex flex-col h-full w-full">
+          {/* Sequencer takes half the space */}
+          <div className="flex-1 flex items-center justify-center overflow-auto">
+            {pattern && (
+              <Sequencer
+                pattern={pattern}
+                sounds={DEFAULT_SOUNDS}
+                currentStep={currentStep}
+                isPlaying={isPlaying}
+                onStepToggle={toggleStep}
+              />
+            )}
+          </div>
+          {/* Drum pads take half the space */}
+          <div className="flex-1 flex items-center justify-center">
+            <DrumPadGrid
+              sounds={DEFAULT_SOUNDS}
+              onTrigger={handleTrigger}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex items-center justify-center">
+          <DrumPadGrid
+            sounds={DEFAULT_SOUNDS}
+            onTrigger={handleTrigger}
+          />
+        </div>
+      )}
     </LandscapeLayout>
   )
 }
