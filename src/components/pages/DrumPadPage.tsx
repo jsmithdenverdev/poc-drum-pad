@@ -162,11 +162,6 @@ export function DrumPadPage() {
               isPlaying={isPlaying}
               onStepSelect={handleStepSelect}
             />
-            {selectedStep !== null && !isPlaying && (
-              <p className="text-center text-sm text-muted-foreground mt-2">
-                Step {selectedStep + 1} selected — tap pads to add/remove sounds
-              </p>
-            )}
           </div>
         )}
 
