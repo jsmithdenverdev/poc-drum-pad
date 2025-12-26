@@ -6,6 +6,7 @@ class AudioEngine {
   private gainNode: GainNode | null = null
   private _state: AudioEngineState = 'uninitialized'
   private stateListeners: Set<(state: AudioEngineState) => void> = new Set()
+  private resumeListeners: Set<() => void> = new Set()
 
   get state(): AudioEngineState {
     return this._state
@@ -20,6 +21,14 @@ class AudioEngine {
     this.stateListeners.add(listener)
     return () => {
       this.stateListeners.delete(listener)
+    }
+  }
+
+  // Called when audio context is resumed after being suspended
+  onResume(listener: () => void): () => void {
+    this.resumeListeners.add(listener)
+    return () => {
+      this.resumeListeners.delete(listener)
     }
   }
 
@@ -38,6 +47,11 @@ class AudioEngine {
       this.gainNode = this.context.createGain()
       this.gainNode.connect(this.context.destination)
 
+      // Listen for state changes on the context
+      this.context.onstatechange = () => {
+        console.log(`AudioContext state changed: ${this.context?.state}`)
+      }
+
       await this.loadSounds(sounds)
       this.setState('ready')
     } catch (error) {
@@ -45,6 +59,24 @@ class AudioEngine {
       this.setState('error')
       throw error
     }
+  }
+
+  // Explicitly resume the audio context (call on user interaction after visibility change)
+  async resume(): Promise<boolean> {
+    if (!this.context) return false
+
+    if (this.context.state === 'suspended') {
+      console.log('Resuming suspended audio context...')
+      await this.context.resume()
+      console.log(`Audio context resumed: ${this.context.state}`)
+      this.resumeListeners.forEach(listener => listener())
+      return true
+    }
+    return false
+  }
+
+  get isSuspended(): boolean {
+    return this.context?.state === 'suspended'
   }
 
   private async loadSounds(sounds: DrumSound[]): Promise<void> {
@@ -80,18 +112,16 @@ class AudioEngine {
     console.log(`Audio buffers loaded: ${this.buffers.size}/${sounds.length}`)
   }
 
-  play(soundId: string): void {
-    console.log(`Play called: ${soundId}`)
-
+  async play(soundId: string): Promise<void> {
     if (!this.context || !this.gainNode) {
       console.warn('Audio engine not initialized')
       return
     }
 
-    // Check if context is suspended (iOS)
+    // Resume if suspended (iOS / backgrounded)
     if (this.context.state === 'suspended') {
-      console.log('Resuming suspended audio context')
-      this.context.resume()
+      console.log('Resuming suspended audio context before play')
+      await this.context.resume()
     }
 
     const buffer = this.buffers.get(soundId)
@@ -100,7 +130,6 @@ class AudioEngine {
       return
     }
 
-    console.log(`Playing ${soundId}: ${buffer.duration.toFixed(2)}s, ctx state: ${this.context.state}, gain: ${this.gainNode.gain.value}`)
     const source = this.context.createBufferSource()
     source.buffer = buffer
     source.connect(this.gainNode)
@@ -135,6 +164,9 @@ class AudioEngine {
   // Schedule a sound to play at a specific time (for sequencer)
   schedulePlay(soundId: string, time: number): void {
     if (!this.context || !this.gainNode) return
+
+    // Don't schedule if context is suspended - sequencer should stop
+    if (this.context.state === 'suspended') return
 
     const buffer = this.buffers.get(soundId)
     if (!buffer) return

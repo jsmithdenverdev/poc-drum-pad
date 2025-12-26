@@ -20,6 +20,14 @@ export function useSequencer(initialPattern: SequencerPattern | null) {
     })
   }, [])
 
+  // Listen for external stop events (e.g., page hidden)
+  useEffect(() => {
+    return sequencer.onStop(() => {
+      setIsPlaying(false)
+      setCurrentStep(0)
+    })
+  }, [])
+
   const start = useCallback(() => {
     sequencer.start()
     setIsPlaying(true)
