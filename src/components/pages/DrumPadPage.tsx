@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { PlayButton } from '@/components/atoms/PlayButton'
 import { Slider } from '@/components/ui/slider'
-import { Volume2, Settings } from 'lucide-react'
+import { Volume2, Settings, Trash2 } from 'lucide-react'
 import { soundUrls } from '@/audio/sounds'
 import { cn } from '@/lib/utils'
 
@@ -41,7 +41,7 @@ export function DrumPadPage() {
   const [showSettings, setShowSettings] = useState(false)
 
   const { init, play, needsInit, isLoading } = useAudioEngine(DEFAULT_SOUNDS)
-  const { isPlaying, currentStep, bpm, pattern, toggle, setBpm, toggleSoundOnStep } = useSequencer(DEFAULT_PATTERN)
+  const { isPlaying, currentStep, bpm, pattern, toggle, setBpm, toggleSoundOnStep, clearPattern } = useSequencer(DEFAULT_PATTERN)
 
   const handleTrigger = useCallback((soundId: string) => {
     // Always play the sound
@@ -115,6 +115,18 @@ export function DrumPadPage() {
             {/* Play button - only when sequencer is on */}
             {showSequencer && (
               <PlayButton isPlaying={isPlaying} onToggle={toggle} />
+            )}
+
+            {/* Clear button */}
+            {showSequencer && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={clearPattern}
+                title="Clear pattern"
+              >
+                <Trash2 className="w-5 h-5" />
+              </Button>
             )}
 
             {/* Settings button */}

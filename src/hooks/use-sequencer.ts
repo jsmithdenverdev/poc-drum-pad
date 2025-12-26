@@ -91,6 +91,23 @@ export function useSequencer(initialPattern: SequencerPattern | null) {
     })
   }, [])
 
+  const clearPattern = useCallback(() => {
+    setPattern(prev => {
+      if (!prev) return prev
+
+      const newPattern = {
+        ...prev,
+        tracks: prev.tracks.map(track => ({
+          ...track,
+          steps: track.steps.map(() => ({ active: false })),
+        })),
+      }
+
+      sequencer.setPattern(newPattern)
+      return newPattern
+    })
+  }, [])
+
   return {
     isPlaying,
     currentStep,
@@ -102,5 +119,6 @@ export function useSequencer(initialPattern: SequencerPattern | null) {
     setBpm,
     toggleStep,
     toggleSoundOnStep,
+    clearPattern,
   }
 }
