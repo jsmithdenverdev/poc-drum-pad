@@ -68,6 +68,29 @@ export function useSequencer(initialPattern: SequencerPattern | null) {
     })
   }, [])
 
+  const toggleSoundOnStep = useCallback((soundId: string, stepIndex: number) => {
+    setPattern(prev => {
+      if (!prev) return prev
+
+      const newPattern = {
+        ...prev,
+        tracks: prev.tracks.map(track => {
+          if (track.soundId !== soundId) return track
+          return {
+            ...track,
+            steps: track.steps.map((step, sIdx) => {
+              if (sIdx !== stepIndex) return step
+              return { ...step, active: !step.active }
+            }),
+          }
+        }),
+      }
+
+      sequencer.setPattern(newPattern)
+      return newPattern
+    })
+  }, [])
+
   return {
     isPlaying,
     currentStep,
@@ -78,5 +101,6 @@ export function useSequencer(initialPattern: SequencerPattern | null) {
     toggle,
     setBpm,
     toggleStep,
+    toggleSoundOnStep,
   }
 }
