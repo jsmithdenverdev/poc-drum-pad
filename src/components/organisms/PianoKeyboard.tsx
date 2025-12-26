@@ -1,5 +1,5 @@
 import { PianoKey } from '@/components/atoms/PianoKey'
-import { SYNTH_NOTES, type SynthNote } from '@/audio/synth-engine'
+import { SYNTH_NOTES } from '@/audio/synth-engine'
 import { cn } from '@/lib/utils'
 
 interface PianoKeyboardProps {
@@ -13,17 +13,19 @@ export function PianoKeyboard({ onTrigger, className }: PianoKeyboardProps) {
   const blackKeys = SYNTH_NOTES.filter(note => note.isBlackKey)
 
   // Get the position of black keys relative to white keys
-  // Black keys appear between: C-D, D-E, F-G, G-A, A-B (repeating per octave)
-  const getBlackKeyPosition = (note: SynthNote, whiteKeyWidth: number): number => {
-    // Map of which white key index each black key follows
+  // For our C4-C5 octave, white keys are: C4(0), D4(1), E4(2), F4(3), G4(4), A4(5), B4(6), C5(7)
+  // Black keys appear after: C4(0)->C#4, D4(1)->D#4, F4(3)->F#4, G4(4)->G#4, A4(5)->A#4
+  const getBlackKeyPosition = (note: string, whiteKeyWidth: number): number => {
     const blackKeyPositions: Record<string, number> = {
-      'C#3': 0, 'D#3': 1, 'F#3': 3, 'G#3': 4, 'A#3': 5,
-      'C#4': 7, 'D#4': 8, 'F#4': 10, 'G#4': 11, 'A#4': 12,
-      'C#5': 14, 'D#5': 15, 'F#5': 17, 'G#5': 18, 'A#5': 19,
+      'C#4': 0,  // After C4 (index 0)
+      'D#4': 1,  // After D4 (index 1)
+      'F#4': 3,  // After F4 (index 3)
+      'G#4': 4,  // After G4 (index 4)
+      'A#4': 5,  // After A4 (index 5)
     }
-    const whiteKeyIndex = blackKeyPositions[note.note] ?? 0
-    // Position it between the white keys (offset by 70% of white key width)
-    return whiteKeyIndex * whiteKeyWidth + (whiteKeyWidth * 0.7)
+    const whiteKeyIndex = blackKeyPositions[note] ?? 0
+    // Position it between the white keys (offset by 75% of white key width)
+    return whiteKeyIndex * whiteKeyWidth + (whiteKeyWidth * 0.75)
   }
 
   return (
@@ -42,11 +44,10 @@ export function PianoKeyboard({ onTrigger, className }: PianoKeyboardProps) {
       </div>
 
       {/* Black keys - absolutely positioned */}
-      <div className="absolute inset-0 flex pointer-events-none">
+      <div className="absolute inset-0 pointer-events-none">
         {blackKeys.map(note => {
-          // Calculate position based on note
-          const whiteKeyWidth = 100 / whiteKeys.length // percentage
-          const leftPosition = getBlackKeyPosition(note, whiteKeyWidth)
+          const whiteKeyWidth = 100 / whiteKeys.length
+          const leftPosition = getBlackKeyPosition(note.note, whiteKeyWidth)
 
           return (
             <div

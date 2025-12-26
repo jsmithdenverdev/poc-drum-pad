@@ -16,9 +16,13 @@ interface DrumPadPageProps {
   isPlaying: boolean
   currentStep: number
   bpm: number
+  showSequencer: boolean
+  selectedStep: number | null
   onPlay: (soundId: string) => void
   onToggle: () => Promise<void>
   onSetBpm: (bpm: number) => void
+  onShowSequencerChange: (show: boolean) => void
+  onStepSelect: (stepIndex: number) => void
   onToggleSoundOnStep: (soundId: string, stepIndex: number) => void
   onClearPattern: () => void
 }
@@ -29,14 +33,16 @@ export function DrumPadPage({
   isPlaying,
   currentStep,
   bpm,
+  showSequencer,
+  selectedStep,
   onPlay,
   onToggle,
   onSetBpm,
+  onShowSequencerChange,
+  onStepSelect,
   onToggleSoundOnStep,
   onClearPattern,
 }: DrumPadPageProps) {
-  const [showSequencer, setShowSequencer] = useState(false)
-  const [selectedStep, setSelectedStep] = useState<number | null>(null)
   const [showSettings, setShowSettings] = useState(false)
 
   const handleTrigger = useCallback((soundId: string) => {
@@ -49,11 +55,6 @@ export function DrumPadPage({
       onToggleSoundOnStep(soundId, selectedStep)
     }
   }, [onPlay, showSequencer, selectedStep, isPlaying, onToggleSoundOnStep])
-
-  const handleStepSelect = useCallback((stepIndex: number) => {
-    // Toggle selection - tap again to deselect
-    setSelectedStep(prev => prev === stepIndex ? null : stepIndex)
-  }, [])
 
   // Filter pattern to only show drum tracks
   const drumPattern: SequencerPattern = {
@@ -78,7 +79,7 @@ export function DrumPadPage({
               <Switch
                 id="sequencer-toggle"
                 checked={showSequencer}
-                onCheckedChange={setShowSequencer}
+                onCheckedChange={onShowSequencerChange}
               />
             </div>
 
@@ -142,7 +143,7 @@ export function DrumPadPage({
               selectedStep={selectedStep}
               currentStep={currentStep}
               isPlaying={isPlaying}
-              onStepSelect={handleStepSelect}
+              onStepSelect={onStepSelect}
             />
           </div>
         )}

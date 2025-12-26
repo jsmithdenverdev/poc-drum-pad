@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { DrumPadPage } from '@/components/pages/DrumPadPage'
 import { SynthPage } from '@/components/pages/SynthPage'
 import { DebugDrawer } from '@/components/organisms/DebugDrawer'
@@ -41,6 +41,8 @@ const SWIPE_THRESHOLD = 50
 function App() {
   const [currentPage, setCurrentPage] = useState(0) // 0 = drums, 1 = synth
   const [pattern, setPattern] = useState<SequencerPattern>(DEFAULT_PATTERN)
+  const [showSequencer, setShowSequencer] = useState(false)
+  const [selectedStep, setSelectedStep] = useState<number | null>(null)
 
   // Swipe tracking
   const touchStartX = useRef<number | null>(null)
@@ -51,11 +53,6 @@ function App() {
 
   // Sequencer (shared)
   const { isPlaying, currentStep, bpm, toggle, setBpm } = useSequencer(pattern)
-
-  // Update sequencer when pattern changes
-  useEffect(() => {
-    // The useSequencer hook handles this internally
-  }, [pattern])
 
   // Handle touch start
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -140,6 +137,11 @@ function App() {
     }))
   }, [])
 
+  // Handle step selection
+  const handleStepSelect = useCallback((stepIndex: number) => {
+    setSelectedStep(prev => prev === stepIndex ? null : stepIndex)
+  }, [])
+
   // Handle init button
   const handleInit = useCallback(async () => {
     await init()
@@ -194,9 +196,13 @@ function App() {
               isPlaying={isPlaying}
               currentStep={currentStep}
               bpm={bpm}
+              showSequencer={showSequencer}
+              selectedStep={selectedStep}
               onPlay={play}
               onToggle={toggle}
               onSetBpm={setBpm}
+              onShowSequencerChange={setShowSequencer}
+              onStepSelect={handleStepSelect}
               onToggleSoundOnStep={(soundId, stepIndex) => toggleSoundOnStep(soundId, stepIndex, 'drum')}
               onClearPattern={clearDrumTracks}
             />
@@ -209,9 +215,13 @@ function App() {
               isPlaying={isPlaying}
               currentStep={currentStep}
               bpm={bpm}
+              showSequencer={showSequencer}
+              selectedStep={selectedStep}
               onPlaySynth={playSynth}
               onToggle={toggle}
               onSetBpm={setBpm}
+              onShowSequencerChange={setShowSequencer}
+              onStepSelect={handleStepSelect}
               onToggleSoundOnStep={toggleSoundOnStep}
               onClearSynthTracks={clearSynthTracks}
             />

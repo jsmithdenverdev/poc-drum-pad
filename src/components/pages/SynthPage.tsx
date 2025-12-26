@@ -17,9 +17,13 @@ interface SynthPageProps {
   isPlaying: boolean
   currentStep: number
   bpm: number
+  showSequencer: boolean
+  selectedStep: number | null
   onPlaySynth: (noteId: string) => void
   onToggle: () => Promise<void>
   onSetBpm: (bpm: number) => void
+  onShowSequencerChange: (show: boolean) => void
+  onStepSelect: (stepIndex: number) => void
   onToggleSoundOnStep: (soundId: string, stepIndex: number, soundType: 'drum' | 'synth') => void
   onClearSynthTracks: () => void
 }
@@ -46,14 +50,16 @@ export function SynthPage({
   isPlaying,
   currentStep,
   bpm,
+  showSequencer,
+  selectedStep,
   onPlaySynth,
   onToggle,
   onSetBpm,
+  onShowSequencerChange,
+  onStepSelect,
   onToggleSoundOnStep,
   onClearSynthTracks,
 }: SynthPageProps) {
-  const [showSequencer, setShowSequencer] = useState(false)
-  const [selectedStep, setSelectedStep] = useState<number | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [waveform, setWaveform] = useState<WaveformType>('sawtooth')
 
@@ -66,10 +72,6 @@ export function SynthPage({
       onToggleSoundOnStep(noteId, selectedStep, 'synth')
     }
   }, [onPlaySynth, showSequencer, selectedStep, isPlaying, onToggleSoundOnStep])
-
-  const handleStepSelect = useCallback((stepIndex: number) => {
-    setSelectedStep(prev => prev === stepIndex ? null : stepIndex)
-  }, [])
 
   const handleWaveformChange = useCallback((newWaveform: WaveformType) => {
     setWaveform(newWaveform)
@@ -99,7 +101,7 @@ export function SynthPage({
               <Switch
                 id="synth-sequencer-toggle"
                 checked={showSequencer}
-                onCheckedChange={setShowSequencer}
+                onCheckedChange={onShowSequencerChange}
               />
             </div>
 
@@ -184,7 +186,7 @@ export function SynthPage({
               selectedStep={selectedStep}
               currentStep={currentStep}
               isPlaying={isPlaying}
-              onStepSelect={handleStepSelect}
+              onStepSelect={onStepSelect}
             />
           </div>
         )}
@@ -206,7 +208,7 @@ export function SynthPage({
                       : 'bg-secondary/50 border-border hover:bg-secondary',
                     isPlaying && currentStep === i && 'ring-2 ring-orange-500',
                   )}
-                  onClick={() => handleStepSelect(i)}
+                  onClick={() => onStepSelect(i)}
                 />
               ))}
             </div>
