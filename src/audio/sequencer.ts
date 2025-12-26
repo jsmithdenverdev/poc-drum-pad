@@ -114,7 +114,8 @@ class Sequencer {
     // Schedule sounds for this step
     this.pattern.tracks.forEach(track => {
       if (track.steps[step]?.active) {
-        audioEngine.schedulePlay(track.soundId, time)
+        const isSynth = track.soundType === 'synth'
+        audioEngine.schedulePlay(track.soundId, time, isSynth)
       }
     })
 
