@@ -44,14 +44,15 @@ export function DrumPadPage() {
   const { isPlaying, currentStep, bpm, pattern, toggle, setBpm, toggleSoundOnStep } = useSequencer(DEFAULT_PATTERN)
 
   const handleTrigger = useCallback((soundId: string) => {
-    // Always play the sound for preview
+    // Always play the sound
     play(soundId)
 
-    // If sequencer is on and a step is selected, toggle that sound on the step
-    if (showSequencer && selectedStep !== null) {
+    // Only add to sequence if: sequencer visible, step selected, and NOT playing
+    // This allows jamming over a playing sequence
+    if (showSequencer && selectedStep !== null && !isPlaying) {
       toggleSoundOnStep(soundId, selectedStep)
     }
-  }, [play, showSequencer, selectedStep, toggleSoundOnStep])
+  }, [play, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
 
   const handleStepSelect = useCallback((stepIndex: number) => {
     // Toggle selection - tap again to deselect
@@ -161,7 +162,7 @@ export function DrumPadPage() {
               isPlaying={isPlaying}
               onStepSelect={handleStepSelect}
             />
-            {selectedStep !== null && (
+            {selectedStep !== null && !isPlaying && (
               <p className="text-center text-sm text-muted-foreground mt-2">
                 Step {selectedStep + 1} selected — tap pads to add/remove sounds
               </p>

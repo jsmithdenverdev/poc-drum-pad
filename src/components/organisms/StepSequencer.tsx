@@ -40,8 +40,8 @@ export function StepSequencer({
 
   return (
     <div className={cn('w-full max-w-2xl mx-auto px-2', className)}>
-      {/* Two rows of 8 steps each */}
-      <div className="grid grid-cols-8 gap-1.5 sm:gap-2">
+      {/* Four rows of 4 steps each */}
+      <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
         {steps.map(stepIndex => (
           <StepButton
             key={stepIndex}
