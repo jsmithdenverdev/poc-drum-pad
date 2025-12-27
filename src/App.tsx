@@ -322,12 +322,12 @@ function App() {
           </div>
         </header>
 
-        {/* Settings panel - collapsible, context-aware */}
+        {/* Settings panel - collapsible, shows all relevant settings */}
         {showSettings && (
-          <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-secondary/30">
-            {currentPage === 0 ? (
-              /* Drum page: show sequencer config when sequencer is on */
-              showSequencer ? (
+          <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-secondary/30 space-y-4">
+            <div className="max-w-lg mx-auto space-y-4">
+              {/* Sequencer settings - when sequencer is enabled */}
+              {showSequencer && (
                 <SequencerConfig
                   bpm={bpm}
                   stepCount={stepCount}
@@ -336,26 +336,29 @@ function App() {
                   onBpmChange={setBpm}
                   onStepCountChange={handleStepCountChange}
                   onToggleTrackVisibility={toggleTrackVisibility}
-                  className="max-w-lg mx-auto"
                 />
-              ) : (
+              )}
+
+              {/* Synth settings - when on synth page */}
+              {currentPage === 1 && (
+                <SynthConfig
+                  settings={synthSettings}
+                  onWaveformChange={handleWaveformChange}
+                  onOctaveChange={handleOctaveChange}
+                  onDetuneChange={handleDetuneChange}
+                  onAttackChange={handleAttackChange}
+                  onReleaseChange={handleReleaseChange}
+                  onFilterChange={handleFilterChange}
+                />
+              )}
+
+              {/* No settings available message */}
+              {currentPage === 0 && !showSequencer && (
                 <p className="text-center text-sm text-muted-foreground">
-                  Enable the sequencer to configure drum settings
+                  Enable the sequencer to configure settings
                 </p>
-              )
-            ) : (
-              /* Synth page: always show synth config */
-              <SynthConfig
-                settings={synthSettings}
-                onWaveformChange={handleWaveformChange}
-                onOctaveChange={handleOctaveChange}
-                onDetuneChange={handleDetuneChange}
-                onAttackChange={handleAttackChange}
-                onReleaseChange={handleReleaseChange}
-                onFilterChange={handleFilterChange}
-                className="max-w-lg mx-auto"
-              />
-            )}
+              )}
+            </div>
           </div>
         )}
 
