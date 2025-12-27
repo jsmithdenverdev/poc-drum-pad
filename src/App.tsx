@@ -39,6 +39,9 @@ const SYNTH_SOUNDS_FOR_DISPLAY: DrumSound[] = SYNTH_NOTES.map(note => ({
 // Combined sounds for sequencer color lookup
 const ALL_SOUNDS_FOR_DISPLAY: DrumSound[] = [...DRUM_SOUNDS, ...SYNTH_SOUNDS_FOR_DISPLAY]
 
+// Maximum steps - always store this many to preserve data when changing step count
+const MAX_STEPS = 32
+
 // Initial pattern with drum tracks only (synth tracks added dynamically)
 const DEFAULT_PATTERN: SequencerPattern = {
   id: 'default',
@@ -47,7 +50,7 @@ const DEFAULT_PATTERN: SequencerPattern = {
   tracks: DRUM_SOUNDS.map(sound => ({
     soundId: sound.id,
     soundType: 'drum' as const,
-    steps: Array(16).fill(null).map(() => ({ active: false })),
+    steps: Array(MAX_STEPS).fill(null).map(() => ({ active: false })),
   })),
 }
 
@@ -131,7 +134,7 @@ function App() {
         const newTrack = {
           soundId,
           soundType,
-          steps: Array(stepCount).fill(null).map((_, sIdx) => ({
+          steps: Array(MAX_STEPS).fill(null).map((_, sIdx) => ({
             active: sIdx === stepIndex
           })),
         }
@@ -141,24 +144,19 @@ function App() {
         }
       }
     })
-  }, [stepCount])
+  }, [])
 
-  // Handle step count change - resize pattern tracks
+  // Handle step count change - only changes display/playback, data always has MAX_STEPS
   const handleStepCountChange = useCallback((newCount: StepCount) => {
     setStepCount(newCount)
+    // Ensure all tracks have MAX_STEPS (in case of legacy data)
     setPattern(prev => ({
       ...prev,
       tracks: prev.tracks.map(track => {
-        const currentLength = track.steps.length
-        if (newCount === currentLength) return track
-        if (newCount < currentLength) {
-          // Truncate steps
-          return { ...track, steps: track.steps.slice(0, newCount) }
-        } else {
-          // Extend steps with inactive steps
-          const newSteps = Array(newCount - currentLength).fill(null).map(() => ({ active: false }))
-          return { ...track, steps: [...track.steps, ...newSteps] }
-        }
+        if (track.steps.length >= MAX_STEPS) return track
+        // Extend to MAX_STEPS if needed
+        const newSteps = Array(MAX_STEPS - track.steps.length).fill(null).map(() => ({ active: false }))
+        return { ...track, steps: [...track.steps, ...newSteps] }
       }),
     }))
     // Clear selected step if it's beyond new count
