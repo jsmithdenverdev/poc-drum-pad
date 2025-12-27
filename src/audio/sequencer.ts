@@ -1,4 +1,5 @@
 import { audioEngine } from './audio-engine'
+import { audioContextManager } from './audio-context-manager'
 import type { SequencerPattern, StepCount } from '@/types/audio.types'
 
 type SequencerCallback = (step: number) => void
@@ -54,19 +55,10 @@ class Sequencer {
   async start(): Promise<boolean> {
     if (this.isPlaying || !this.pattern) return false
 
-    // Try to resume audio if suspended
-    if (audioEngine.isSuspended) {
-      console.log('Audio suspended, attempting to resume before starting sequencer...')
-      const resumed = await audioEngine.resume()
-      if (!resumed) {
-        console.log('Cannot start sequencer - failed to resume audio')
-        return false
-      }
-    }
-
-    // Double-check audio is running
-    if (!audioEngine.isRunning) {
-      console.log('Cannot start sequencer - audio not running')
+    // Ensure audio context is running before starting sequencer
+    const isRunning = await audioContextManager.ensureRunning()
+    if (!isRunning) {
+      console.log('Cannot start sequencer - failed to resume audio')
       return false
     }
 
@@ -94,7 +86,7 @@ class Sequencer {
     if (!this.isPlaying || !this.pattern) return
 
     // Stop if audio context became suspended
-    if (audioEngine.isSuspended) {
+    if (audioContextManager.isSuspended) {
       console.log('Audio context suspended, stopping sequencer')
       this.stop()
       return
