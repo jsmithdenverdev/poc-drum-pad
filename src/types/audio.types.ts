@@ -1,8 +1,11 @@
-export interface DrumSound {
+export interface SoundDisplay {
   id: string
   name: string
-  url: string
   color: string
+}
+
+export interface DrumSound extends SoundDisplay {
+  url: string
   key?: string // keyboard shortcut
 }
 

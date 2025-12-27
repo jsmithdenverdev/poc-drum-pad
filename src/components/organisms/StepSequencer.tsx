@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
 import { StepButton } from '@/components/atoms/StepButton'
-import type { DrumSound, SequencerPattern, StepCount } from '@/types/audio.types'
+import type { SoundDisplay, SequencerPattern, StepCount } from '@/types/audio.types'
 import { cn } from '@/lib/utils'
 
 interface StepSequencerProps {
   pattern: SequencerPattern
-  sounds: DrumSound[]
+  sounds: SoundDisplay[]
   selectedStep: number | null
   currentStep: number
   isPlaying: boolean
