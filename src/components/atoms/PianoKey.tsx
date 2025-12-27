@@ -31,6 +31,9 @@ export function PianoKey({ noteId, note, isBlackKey, onTrigger, className }: Pia
 
   return (
     <button
+      role="button"
+      aria-label={`Piano key ${note}`}
+      aria-pressed={isActive}
       className={cn(
         'relative select-none touch-none transition-all duration-75',
         isBlackKey ? [

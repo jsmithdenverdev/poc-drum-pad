@@ -15,6 +15,7 @@ export function PlayButton({ isPlaying, onToggle, className }: PlayButtonProps) 
       size="lg"
       onClick={onToggle}
       className={cn('min-w-[100px]', className)}
+      aria-label={isPlaying ? 'Stop playback' : 'Start playback'}
     >
       {isPlaying ? (
         <>

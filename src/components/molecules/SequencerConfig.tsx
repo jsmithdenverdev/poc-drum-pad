@@ -30,7 +30,7 @@ export function SequencerConfig({
     <div className={cn('space-y-4', className)}>
       {/* BPM Control */}
       <div className="flex items-center gap-4">
-        <span className="text-sm text-muted-foreground w-12">BPM</span>
+        <label htmlFor="bpm-slider" className="text-sm text-muted-foreground w-12">BPM</label>
         <Slider
           value={[bpm]}
           min={60}
@@ -38,14 +38,15 @@ export function SequencerConfig({
           step={1}
           onValueChange={([v]) => onBpmChange(v)}
           className="flex-1"
+          aria-label="Tempo in beats per minute"
         />
-        <span className="text-sm font-mono w-8">{bpm}</span>
+        <span className="text-sm font-mono w-8" aria-live="polite">{bpm}</span>
       </div>
 
       {/* Step Count Selector */}
       <div className="flex items-center gap-4">
         <span className="text-sm text-muted-foreground w-12">Steps</span>
-        <div className="flex gap-1">
+        <div className="flex gap-1" role="group" aria-label="Step count selector">
           {STEP_COUNT_OPTIONS.map(count => (
             <Button
               key={count}
@@ -53,6 +54,8 @@ export function SequencerConfig({
               size="sm"
               onClick={() => onStepCountChange(count)}
               className="w-10"
+              aria-label={`${count} steps`}
+              aria-pressed={stepCount === count}
             >
               {count}
             </Button>
@@ -63,7 +66,7 @@ export function SequencerConfig({
       {/* Track Visibility */}
       <div className="flex items-center gap-4">
         <span className="text-sm text-muted-foreground w-12">Tracks</span>
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Track visibility controls">
           {tracks.map(track => {
             const isHidden = hiddenTracks.has(track.id)
             return (
@@ -80,11 +83,13 @@ export function SequencerConfig({
                   borderColor: isHidden ? undefined : track.color,
                   color: isHidden ? undefined : track.color,
                 }}
+                aria-label={`${isHidden ? 'Show' : 'Hide'} ${track.name} track`}
+                aria-pressed={!isHidden}
               >
                 {isHidden ? (
-                  <EyeOff className="w-3 h-3" />
+                  <EyeOff className="w-3 h-3" aria-hidden="true" />
                 ) : (
-                  <Eye className="w-3 h-3" />
+                  <Eye className="w-3 h-3" aria-hidden="true" />
                 )}
                 {track.name}
               </Button>
