@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 
 interface DrumPadProps {
@@ -9,7 +9,7 @@ interface DrumPadProps {
   className?: string
 }
 
-export function DrumPad({ id, name, color, onTrigger, className }: DrumPadProps) {
+export const DrumPad = React.memo(function DrumPad({ id, name, color, onTrigger, className }: DrumPadProps) {
   const [isAnimating, setIsAnimating] = useState(false)
 
   const handleTrigger = useCallback(() => {
@@ -48,4 +48,4 @@ export function DrumPad({ id, name, color, onTrigger, className }: DrumPadProps)
       </span>
     </button>
   )
-}
+})

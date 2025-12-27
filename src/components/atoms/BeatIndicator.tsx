@@ -1,3 +1,4 @@
+import React from 'react'
 import { cn } from '@/lib/utils'
 
 interface BeatIndicatorProps {
@@ -6,7 +7,7 @@ interface BeatIndicatorProps {
   className?: string
 }
 
-export function BeatIndicator({ active, isCurrentStep, className }: BeatIndicatorProps) {
+export const BeatIndicator = React.memo(function BeatIndicator({ active, isCurrentStep, className }: BeatIndicatorProps) {
   return (
     <div
       className={cn(
@@ -17,4 +18,4 @@ export function BeatIndicator({ active, isCurrentStep, className }: BeatIndicato
       )}
     />
   )
-}
+})

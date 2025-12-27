@@ -1,3 +1,4 @@
+import React from 'react'
 import { PlayButton } from '@/components/atoms/PlayButton'
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
@@ -10,7 +11,7 @@ interface TransportControlsProps {
   className?: string
 }
 
-export function TransportControls({
+export const TransportControls = React.memo(function TransportControls({
   isPlaying,
   bpm,
   onToggle,
@@ -35,4 +36,4 @@ export function TransportControls({
       </div>
     </div>
   )
-}
+})

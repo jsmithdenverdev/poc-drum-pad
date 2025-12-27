@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 
 interface PianoKeyProps {
@@ -9,7 +9,7 @@ interface PianoKeyProps {
   className?: string
 }
 
-export function PianoKey({ noteId, note, isBlackKey, onTrigger, className }: PianoKeyProps) {
+export const PianoKey = React.memo(function PianoKey({ noteId, note, isBlackKey, onTrigger, className }: PianoKeyProps) {
   const [isActive, setIsActive] = useState(false)
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
@@ -70,4 +70,4 @@ export function PianoKey({ noteId, note, isBlackKey, onTrigger, className }: Pia
       )}
     </button>
   )
-}
+})
