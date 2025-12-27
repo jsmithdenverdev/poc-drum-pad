@@ -39,6 +39,8 @@ export function DrumPadPage({ onNavigate: _onNavigate }: DrumPadPageProps) {
     handleStepSelect,
     handleStepCountChange,
     loadPattern,
+    undo,
+    redo,
   } = useSequencerContext()
 
   const handleTrigger = useCallback((soundId: string) => {
@@ -51,9 +53,11 @@ export function DrumPadPage({ onNavigate: _onNavigate }: DrumPadPageProps) {
     }
   }, [play, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
 
-  // Enable keyboard shortcuts for drum pads
+  // Enable keyboard shortcuts for drum pads and undo/redo
   useKeyboardShortcuts({
     onTrigger: handleTrigger,
+    onUndo: undo,
+    onRedo: redo,
     enabled: true,
   })
 
