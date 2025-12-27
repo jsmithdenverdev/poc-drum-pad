@@ -10,16 +10,22 @@ interface DrumPadProps {
 }
 
 export function DrumPad({ id, name, color, onTrigger, className }: DrumPadProps) {
-  const [isActive, setIsActive] = useState(false)
+  const [isAnimating, setIsAnimating] = useState(false)
 
   const handleTrigger = useCallback(() => {
-    setIsActive(true)
+    setIsAnimating(true)
     onTrigger(id)
-    setTimeout(() => setIsActive(false), 100)
   }, [id, onTrigger])
+
+  const handleAnimationEnd = useCallback(() => {
+    setIsAnimating(false)
+  }, [])
 
   return (
     <button
+      role="button"
+      aria-label={`${name} drum pad`}
+      aria-pressed={isAnimating}
       className={cn(
         'relative aspect-square rounded-lg font-bold text-white',
         'flex items-center justify-center',
@@ -27,14 +33,15 @@ export function DrumPad({ id, name, color, onTrigger, className }: DrumPadProps)
         'touch-none select-none',
         'shadow-lg hover:shadow-xl',
         'min-h-[60px] min-w-[60px]',
-        isActive && 'scale-95 brightness-125',
+        isAnimating && 'animate-drum-trigger',
         className
       )}
       style={{
         backgroundColor: color,
-        boxShadow: isActive ? `0 0 20px ${color}` : undefined,
+        boxShadow: isAnimating ? `0 0 20px ${color}` : undefined,
       }}
       onPointerDown={handleTrigger}
+      onAnimationEnd={handleAnimationEnd}
     >
       <span className="text-xs sm:text-sm md:text-base drop-shadow-md">
         {name}
