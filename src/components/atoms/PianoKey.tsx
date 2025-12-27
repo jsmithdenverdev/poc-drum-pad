@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { cn } from '@/lib/utils'
+import { triggerHaptic } from '@/lib/haptics'
 
 interface PianoKeyProps {
   noteId: string
@@ -14,6 +15,7 @@ export const PianoKey = React.memo(function PianoKey({ noteId, note, isBlackKey,
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault()
+    triggerHaptic('light')
     setIsActive(true)
     onTrigger(noteId)
   }, [noteId, onTrigger])
