@@ -1,3 +1,4 @@
+import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
@@ -23,7 +24,33 @@ interface SynthConfigProps {
   className?: string
 }
 
-export function SynthConfig({
+// Custom comparison function to handle object prop (settings)
+function arePropsEqual(prevProps: SynthConfigProps, nextProps: SynthConfigProps): boolean {
+  // Check className
+  if (prevProps.className !== nextProps.className) {
+    return false
+  }
+
+  // Deep compare settings object
+  const prevSettings = prevProps.settings
+  const nextSettings = nextProps.settings
+
+  if (
+    prevSettings.waveform !== nextSettings.waveform ||
+    prevSettings.octave !== nextSettings.octave ||
+    prevSettings.detune !== nextSettings.detune ||
+    prevSettings.attack !== nextSettings.attack ||
+    prevSettings.release !== nextSettings.release ||
+    prevSettings.filterCutoff !== nextSettings.filterCutoff
+  ) {
+    return false
+  }
+
+  // Callbacks are assumed stable (wrapped in useCallback in parent)
+  return true
+}
+
+export const SynthConfig = React.memo(function SynthConfig({
   settings,
   onWaveformChange,
   onOctaveChange,
@@ -136,4 +163,4 @@ export function SynthConfig({
       </div>
     </div>
   )
-}
+}, arePropsEqual)
