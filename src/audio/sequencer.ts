@@ -1,5 +1,5 @@
 import { audioEngine } from './audio-engine'
-import type { SequencerPattern } from '@/types/audio.types'
+import type { SequencerPattern, StepCount } from '@/types/audio.types'
 
 type SequencerCallback = (step: number) => void
 
@@ -11,6 +11,8 @@ class Sequencer {
   private schedulerTimer: number | null = null
   private stepCallbacks: Set<SequencerCallback> = new Set()
   private stopCallbacks: Set<() => void> = new Set()
+  private stepCount: StepCount = 16
+  private mutedTracks: Set<string> = new Set()
 
   // How far ahead to schedule audio (seconds)
   private readonly scheduleAhead = 0.1
@@ -111,9 +113,9 @@ class Sequencer {
   private scheduleStep(step: number, time: number): void {
     if (!this.pattern) return
 
-    // Schedule sounds for this step
+    // Schedule sounds for this step (skip muted tracks)
     this.pattern.tracks.forEach(track => {
-      if (track.steps[step]?.active) {
+      if (track.steps[step]?.active && !this.mutedTracks.has(track.soundId)) {
         const isSynth = track.soundType === 'synth'
         audioEngine.schedulePlay(track.soundId, time, isSynth)
       }
@@ -135,7 +137,23 @@ class Sequencer {
     const secondsPerStep = secondsPerBeat / stepsPerBeat
 
     this.nextStepTime += secondsPerStep
-    this.currentStep = (this.currentStep + 1) % 16 // 16 steps per pattern
+    this.currentStep = (this.currentStep + 1) % this.stepCount
+  }
+
+  setStepCount(count: StepCount): void {
+    this.stepCount = count
+    // Reset current step if it's beyond the new count
+    if (this.currentStep >= count) {
+      this.currentStep = 0
+    }
+  }
+
+  getStepCount(): StepCount {
+    return this.stepCount
+  }
+
+  setMutedTracks(muted: Set<string>): void {
+    this.mutedTracks = muted
   }
 
   setBpm(bpm: number): void {

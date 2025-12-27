@@ -143,6 +143,7 @@ export function DrumPadPage({
               selectedStep={selectedStep}
               currentStep={currentStep}
               isPlaying={isPlaying}
+              stepCount={16}
               onStepSelect={onStepSelect}
             />
           </div>

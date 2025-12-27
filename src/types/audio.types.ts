@@ -34,3 +34,12 @@ export interface SequencerPattern {
 }
 
 export type AudioEngineState = 'uninitialized' | 'loading' | 'ready' | 'error'
+
+// Sequencer configuration
+export type StepCount = 4 | 8 | 16 | 32
+export const STEP_COUNT_OPTIONS: StepCount[] = [4, 8, 16, 32]
+
+export interface SequencerConfig {
+  stepCount: StepCount
+  hiddenTracks: Set<string> // Track soundIds that are hidden
+}

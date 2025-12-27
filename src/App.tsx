@@ -4,17 +4,17 @@ import { StepSequencer } from '@/components/organisms/StepSequencer'
 import { DrumPadGrid } from '@/components/organisms/DrumPadGrid'
 import { PianoKeyboard } from '@/components/organisms/PianoKeyboard'
 import { LandscapeLayout } from '@/components/templates/LandscapeLayout'
+import { SequencerConfig } from '@/components/molecules/SequencerConfig'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { PlayButton } from '@/components/atoms/PlayButton'
-import { Slider } from '@/components/ui/slider'
 import { Volume2, Settings, Trash2 } from 'lucide-react'
 import { useAudioEngine } from '@/hooks/use-audio-engine'
 import { useSequencer } from '@/hooks/use-sequencer'
 import { soundUrls } from '@/audio/sounds'
 import { SYNTH_NOTES } from '@/audio/synth-engine'
 import { cn } from '@/lib/utils'
-import type { DrumSound, SequencerPattern, SoundType } from '@/types/audio.types'
+import type { DrumSound, SequencerPattern, SoundType, StepCount } from '@/types/audio.types'
 
 // Drum sounds
 const DRUM_SOUNDS: DrumSound[] = [
@@ -39,6 +39,9 @@ const SYNTH_SOUNDS_FOR_DISPLAY: DrumSound[] = SYNTH_NOTES.map(note => ({
 // Combined sounds for sequencer color lookup
 const ALL_SOUNDS_FOR_DISPLAY: DrumSound[] = [...DRUM_SOUNDS, ...SYNTH_SOUNDS_FOR_DISPLAY]
 
+// Maximum steps - always store this many to preserve data when changing step count
+const MAX_STEPS = 32
+
 // Initial pattern with drum tracks only (synth tracks added dynamically)
 const DEFAULT_PATTERN: SequencerPattern = {
   id: 'default',
@@ -47,7 +50,7 @@ const DEFAULT_PATTERN: SequencerPattern = {
   tracks: DRUM_SOUNDS.map(sound => ({
     soundId: sound.id,
     soundType: 'drum' as const,
-    steps: Array(16).fill(null).map(() => ({ active: false })),
+    steps: Array(MAX_STEPS).fill(null).map(() => ({ active: false })),
   })),
 }
 
@@ -68,7 +71,17 @@ function App() {
   const { init, play, playSynth, needsInit, isLoading } = useAudioEngine(DRUM_SOUNDS)
 
   // Sequencer (shared)
-  const { isPlaying, currentStep, bpm, toggle, setBpm } = useSequencer(pattern)
+  const {
+    isPlaying,
+    currentStep,
+    bpm,
+    stepCount,
+    hiddenTracks,
+    toggle,
+    setBpm,
+    setStepCount,
+    toggleTrackVisibility,
+  } = useSequencer(pattern)
 
   // Handle touch start
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -121,7 +134,7 @@ function App() {
         const newTrack = {
           soundId,
           soundType,
-          steps: Array(16).fill(null).map((_, sIdx) => ({
+          steps: Array(MAX_STEPS).fill(null).map((_, sIdx) => ({
             active: sIdx === stepIndex
           })),
         }
@@ -132,6 +145,25 @@ function App() {
       }
     })
   }, [])
+
+  // Handle step count change - only changes display/playback, data always has MAX_STEPS
+  const handleStepCountChange = useCallback((newCount: StepCount) => {
+    setStepCount(newCount)
+    // Ensure all tracks have MAX_STEPS (in case of legacy data)
+    setPattern(prev => ({
+      ...prev,
+      tracks: prev.tracks.map(track => {
+        if (track.steps.length >= MAX_STEPS) return track
+        // Extend to MAX_STEPS if needed
+        const newSteps = Array(MAX_STEPS - track.steps.length).fill(null).map(() => ({ active: false }))
+        return { ...track, steps: [...track.steps, ...newSteps] }
+      }),
+    }))
+    // Clear selected step if it's beyond new count
+    if (selectedStep !== null && selectedStep >= newCount) {
+      setSelectedStep(null)
+    }
+  }, [setStepCount, selectedStep])
 
   // Clear all tracks
   const clearPattern = useCallback(() => {
@@ -260,19 +292,17 @@ function App() {
 
         {/* Settings panel - collapsible */}
         {showSequencer && showSettings && (
-          <div className="flex-shrink-0 px-4 py-2 border-b border-border bg-secondary/30">
-            <div className="flex items-center gap-4 max-w-md mx-auto">
-              <span className="text-sm text-muted-foreground">BPM</span>
-              <Slider
-                value={[bpm]}
-                min={60}
-                max={200}
-                step={1}
-                onValueChange={([v]) => setBpm(v)}
-                className="flex-1"
-              />
-              <span className="text-sm font-mono w-8">{bpm}</span>
-            </div>
+          <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-secondary/30">
+            <SequencerConfig
+              bpm={bpm}
+              stepCount={stepCount}
+              tracks={DRUM_SOUNDS}
+              hiddenTracks={hiddenTracks}
+              onBpmChange={setBpm}
+              onStepCountChange={handleStepCountChange}
+              onToggleTrackVisibility={toggleTrackVisibility}
+              className="max-w-lg mx-auto"
+            />
           </div>
         )}
 
@@ -285,6 +315,8 @@ function App() {
               selectedStep={selectedStep}
               currentStep={currentStep}
               isPlaying={isPlaying}
+              stepCount={stepCount}
+              hiddenTracks={hiddenTracks}
               onStepSelect={handleStepSelect}
             />
           </div>
