@@ -1,10 +1,11 @@
+import { useMemo } from 'react'
 import { StepButton } from '@/components/atoms/StepButton'
-import type { DrumSound, SequencerPattern, StepCount } from '@/types/audio.types'
+import type { SoundDisplay, SequencerPattern, StepCount } from '@/types/audio.types'
 import { cn } from '@/lib/utils'
 
 interface StepSequencerProps {
   pattern: SequencerPattern
-  sounds: DrumSound[]
+  sounds: SoundDisplay[]
   selectedStep: number | null
   currentStep: number
   isPlaying: boolean
@@ -25,20 +26,25 @@ export function StepSequencer({
   onStepSelect,
   className,
 }: StepSequencerProps) {
-  // Create a map for quick sound color lookup
-  const soundColorMap = new Map(sounds.map(s => [s.id, s.color]))
+  // Memoize sound color map for quick lookup
+  const soundColorMap = useMemo(
+    () => new Map(sounds.map(s => [s.id, s.color])),
+    [sounds]
+  )
 
-  // Get active sound colors for each step (excluding hidden/muted tracks)
-  const getActiveSoundsForStep = (stepIndex: number): string[] => {
-    const colors: string[] = []
-    pattern.tracks.forEach(track => {
-      if (track.steps[stepIndex]?.active && !hiddenTracks.has(track.soundId)) {
-        const color = soundColorMap.get(track.soundId)
-        if (color) colors.push(color)
-      }
+  // Precompute all step colors once per pattern change
+  const stepColors = useMemo(() => {
+    return Array.from({ length: stepCount }, (_, stepIndex) => {
+      const colors: string[] = []
+      pattern.tracks.forEach(track => {
+        if (track.steps[stepIndex]?.active && !hiddenTracks.has(track.soundId)) {
+          const color = soundColorMap.get(track.soundId)
+          if (color) colors.push(color)
+        }
+      })
+      return colors
     })
-    return colors
-  }
+  }, [pattern.tracks, stepCount, hiddenTracks, soundColorMap])
 
   const steps = Array.from({ length: stepCount }, (_, i) => i)
 
@@ -62,7 +68,7 @@ export function StepSequencer({
             stepIndex={stepIndex}
             isSelected={selectedStep === stepIndex}
             isCurrentStep={isPlaying && currentStep === stepIndex}
-            activeSoundColors={getActiveSoundsForStep(stepIndex)}
+            activeSoundColors={stepColors[stepIndex]}
             onSelect={() => onStepSelect(stepIndex)}
           />
         ))}

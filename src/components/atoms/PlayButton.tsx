@@ -1,3 +1,4 @@
+import React from 'react'
 import { Play, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -8,13 +9,14 @@ interface PlayButtonProps {
   className?: string
 }
 
-export function PlayButton({ isPlaying, onToggle, className }: PlayButtonProps) {
+export const PlayButton = React.memo(function PlayButton({ isPlaying, onToggle, className }: PlayButtonProps) {
   return (
     <Button
       variant={isPlaying ? 'destructive' : 'default'}
       size="lg"
       onClick={onToggle}
       className={cn('min-w-[100px]', className)}
+      aria-label={isPlaying ? 'Stop playback' : 'Start playback'}
     >
       {isPlaying ? (
         <>
@@ -29,4 +31,4 @@ export function PlayButton({ isPlaying, onToggle, className }: PlayButtonProps) 
       )}
     </Button>
   )
-}
+})

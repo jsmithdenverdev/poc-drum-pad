@@ -1,90 +1,22 @@
 import { useState, useCallback, useRef } from 'react'
 import { DebugDrawer } from '@/components/organisms/DebugDrawer'
-import { StepSequencer } from '@/components/organisms/StepSequencer'
-import { DrumPadGrid } from '@/components/organisms/DrumPadGrid'
-import { PianoKeyboard } from '@/components/organisms/PianoKeyboard'
+import { AudioErrorBoundary } from '@/components/organisms/AudioErrorBoundary'
 import { LandscapeLayout } from '@/components/templates/LandscapeLayout'
-import { SequencerConfig } from '@/components/molecules/SequencerConfig'
-import { SynthConfig } from '@/components/molecules/SynthConfig'
+import { DrumPadPage } from '@/components/pages/DrumPadPage'
+import { SynthPage } from '@/components/pages/SynthPage'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { PlayButton } from '@/components/atoms/PlayButton'
-import { Volume2, Settings, Trash2 } from 'lucide-react'
-import { useAudioEngine } from '@/hooks/use-audio-engine'
-import { useSequencer } from '@/hooks/use-sequencer'
-import { soundUrls } from '@/audio/sounds'
-import { SYNTH_NOTES, synthEngine, DEFAULT_SYNTH_SETTINGS } from '@/audio/synth-engine'
-import type { SynthSettings, WaveformType } from '@/audio/synth-engine'
+import { Volume2, AlertTriangle, RefreshCw } from 'lucide-react'
+import { AudioProvider, SequencerProvider, useAudio } from '@/contexts'
+import { SWIPE_THRESHOLD } from '@/constants'
 import { cn } from '@/lib/utils'
-import type { DrumSound, SequencerPattern, SoundType, StepCount } from '@/types/audio.types'
 
-// Drum sounds
-const DRUM_SOUNDS: DrumSound[] = [
-  { id: 'kick', name: 'Kick', url: soundUrls.kick, color: '#ef4444', key: '1' },
-  { id: 'snare', name: 'Snare', url: soundUrls.snare, color: '#f97316', key: '2' },
-  { id: 'hihat', name: 'Hi-Hat', url: soundUrls.hihat, color: '#eab308', key: '3' },
-  { id: 'clap', name: 'Clap', url: soundUrls.clap, color: '#22c55e', key: '4' },
-  { id: 'tom1', name: 'Tom 1', url: soundUrls.tom1, color: '#14b8a6', key: 'q' },
-  { id: 'tom2', name: 'Tom 2', url: soundUrls.tom2, color: '#3b82f6', key: 'w' },
-  { id: 'crash', name: 'Crash', url: soundUrls.crash, color: '#8b5cf6', key: 'e' },
-  { id: 'ride', name: 'Ride', url: soundUrls.ride, color: '#ec4899', key: 'r' },
-]
-
-// Synth sounds for sequencer display (all white keys get purple color)
-const SYNTH_SOUNDS_FOR_DISPLAY: DrumSound[] = SYNTH_NOTES.map(note => ({
-  id: note.id,
-  name: note.note,
-  url: '',
-  color: '#a855f7', // Purple for synth notes
-}))
-
-// Combined sounds for sequencer color lookup
-const ALL_SOUNDS_FOR_DISPLAY: DrumSound[] = [...DRUM_SOUNDS, ...SYNTH_SOUNDS_FOR_DISPLAY]
-
-// Maximum steps - always store this many to preserve data when changing step count
-const MAX_STEPS = 32
-
-// Initial pattern with drum tracks only (synth tracks added dynamically)
-const DEFAULT_PATTERN: SequencerPattern = {
-  id: 'default',
-  name: 'Pattern 1',
-  bpm: 120,
-  tracks: DRUM_SOUNDS.map(sound => ({
-    soundId: sound.id,
-    soundType: 'drum' as const,
-    steps: Array(MAX_STEPS).fill(null).map(() => ({ active: false })),
-  })),
-}
-
-// Swipe threshold in pixels
-const SWIPE_THRESHOLD = 50
-
-function App() {
+// Main app content (needs to be inside providers)
+function AppContent() {
   const [currentPage, setCurrentPage] = useState(0) // 0 = drums, 1 = synth
-  const [pattern, setPattern] = useState<SequencerPattern>(DEFAULT_PATTERN)
-  const [showSequencer, setShowSequencer] = useState(false)
-  const [selectedStep, setSelectedStep] = useState<number | null>(null)
-  const [showSettings, setShowSettings] = useState(false)
-  const [synthSettings, setSynthSettings] = useState<SynthSettings>(DEFAULT_SYNTH_SETTINGS)
+  const { init, needsInit, isLoading, hasError, error } = useAudio()
 
   // Swipe tracking
   const touchStartX = useRef<number | null>(null)
-
-  // Audio engine (shared)
-  const { init, play, playSynth, needsInit, isLoading } = useAudioEngine(DRUM_SOUNDS)
-
-  // Sequencer (shared)
-  const {
-    isPlaying,
-    currentStep,
-    bpm,
-    stepCount,
-    hiddenTracks,
-    toggle,
-    setBpm,
-    setStepCount,
-    toggleTrackVisibility,
-  } = useSequencer(pattern)
 
   // Handle touch start
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -108,123 +40,6 @@ function App() {
 
     touchStartX.current = null
   }, [currentPage])
-
-  // Handle step selection
-  const handleStepSelect = useCallback((stepIndex: number) => {
-    setSelectedStep(prev => prev === stepIndex ? null : stepIndex)
-  }, [])
-
-  // Toggle sound on step (with sound type)
-  const toggleSoundOnStep = useCallback((soundId: string, stepIndex: number, soundType: SoundType) => {
-    setPattern(prev => {
-      const trackIndex = prev.tracks.findIndex(t => t.soundId === soundId)
-
-      if (trackIndex >= 0) {
-        return {
-          ...prev,
-          tracks: prev.tracks.map((track, idx) => {
-            if (idx !== trackIndex) return track
-            return {
-              ...track,
-              steps: track.steps.map((step, sIdx) => {
-                if (sIdx !== stepIndex) return step
-                return { ...step, active: !step.active }
-              }),
-            }
-          }),
-        }
-      } else {
-        const newTrack = {
-          soundId,
-          soundType,
-          steps: Array(MAX_STEPS).fill(null).map((_, sIdx) => ({
-            active: sIdx === stepIndex
-          })),
-        }
-        return {
-          ...prev,
-          tracks: [...prev.tracks, newTrack],
-        }
-      }
-    })
-  }, [])
-
-  // Handle step count change - only changes display/playback, data always has MAX_STEPS
-  const handleStepCountChange = useCallback((newCount: StepCount) => {
-    setStepCount(newCount)
-    // Ensure all tracks have MAX_STEPS (in case of legacy data)
-    setPattern(prev => ({
-      ...prev,
-      tracks: prev.tracks.map(track => {
-        if (track.steps.length >= MAX_STEPS) return track
-        // Extend to MAX_STEPS if needed
-        const newSteps = Array(MAX_STEPS - track.steps.length).fill(null).map(() => ({ active: false }))
-        return { ...track, steps: [...track.steps, ...newSteps] }
-      }),
-    }))
-    // Clear selected step if it's beyond new count
-    if (selectedStep !== null && selectedStep >= newCount) {
-      setSelectedStep(null)
-    }
-  }, [setStepCount, selectedStep])
-
-  // Clear all tracks
-  const clearPattern = useCallback(() => {
-    setPattern(prev => ({
-      ...prev,
-      tracks: prev.tracks.map(track => ({
-        ...track,
-        steps: track.steps.map(() => ({ active: false })),
-      })),
-    }))
-  }, [])
-
-  // Synth settings handlers
-  const handleWaveformChange = useCallback((waveform: WaveformType) => {
-    synthEngine.setWaveform(waveform)
-    setSynthSettings(prev => ({ ...prev, waveform }))
-  }, [])
-
-  const handleOctaveChange = useCallback((octave: number) => {
-    synthEngine.setOctave(octave)
-    setSynthSettings(prev => ({ ...prev, octave }))
-  }, [])
-
-  const handleDetuneChange = useCallback((detune: number) => {
-    synthEngine.setDetune(detune)
-    setSynthSettings(prev => ({ ...prev, detune }))
-  }, [])
-
-  const handleAttackChange = useCallback((attack: number) => {
-    synthEngine.setAttack(attack)
-    setSynthSettings(prev => ({ ...prev, attack }))
-  }, [])
-
-  const handleReleaseChange = useCallback((release: number) => {
-    synthEngine.setRelease(release)
-    setSynthSettings(prev => ({ ...prev, release }))
-  }, [])
-
-  const handleFilterChange = useCallback((filterCutoff: number) => {
-    synthEngine.setFilterCutoff(filterCutoff)
-    setSynthSettings(prev => ({ ...prev, filterCutoff }))
-  }, [])
-
-  // Handle drum pad trigger
-  const handleDrumTrigger = useCallback((soundId: string) => {
-    play(soundId)
-    if (showSequencer && selectedStep !== null && !isPlaying) {
-      toggleSoundOnStep(soundId, selectedStep, 'drum')
-    }
-  }, [play, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
-
-  // Handle synth trigger
-  const handleSynthTrigger = useCallback((noteId: string) => {
-    playSynth(noteId)
-    if (showSequencer && selectedStep !== null && !isPlaying) {
-      toggleSoundOnStep(noteId, selectedStep, 'synth')
-    }
-  }, [playSynth, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
 
   // Handle init button
   const handleInit = useCallback(async () => {
@@ -259,6 +74,56 @@ function App() {
     )
   }
 
+  // Show error UI if audio initialization failed
+  if (hasError) {
+    return (
+      <LandscapeLayout>
+        <div className="flex flex-col items-center justify-center gap-6 p-8 text-center max-w-md mx-auto">
+          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10">
+            <AlertTriangle className="w-8 h-8 text-red-500" />
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold text-foreground">Audio Error</h1>
+            <p className="text-muted-foreground">
+              Unable to initialize audio. This may happen if audio permissions are denied or the device doesn't support Web Audio.
+            </p>
+          </div>
+
+          {error && (
+            <details className="w-full text-left">
+              <summary className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                Technical details
+              </summary>
+              <pre className="mt-2 p-3 bg-secondary rounded-md text-xs text-foreground overflow-auto max-h-32">
+                {error.message}
+              </pre>
+            </details>
+          )}
+
+          <div className="flex gap-3 w-full sm:w-auto">
+            <Button
+              onClick={handleInit}
+              variant="default"
+              className="gap-2 flex-1 sm:flex-initial"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Try Again
+            </Button>
+            <Button
+              onClick={() => window.location.reload()}
+              variant="outline"
+              className="gap-2 flex-1 sm:flex-initial"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh Page
+            </Button>
+          </div>
+        </div>
+      </LandscapeLayout>
+    )
+  }
+
   return (
     <>
       <div
@@ -270,124 +135,25 @@ function App() {
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
-        {/* Static Header */}
-        <header className="flex-shrink-0 px-4 py-2 border-b border-border">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">
-              {currentPage === 0 ? 'Drum Pad' : 'Synth'}
-            </h1>
-            <div className="flex items-center gap-3">
-              {/* Sequencer toggle */}
-              <div className="flex items-center gap-2">
-                <label
-                  htmlFor="sequencer-toggle"
-                  className="text-sm text-muted-foreground hidden sm:inline"
-                >
-                  Seq
-                </label>
-                <Switch
-                  id="sequencer-toggle"
-                  checked={showSequencer}
-                  onCheckedChange={setShowSequencer}
-                />
-              </div>
-
-              {/* Play button - only when sequencer is on */}
-              {showSequencer && (
-                <PlayButton isPlaying={isPlaying} onToggle={toggle} />
-              )}
-
-              {/* Clear button */}
-              {showSequencer && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={clearPattern}
-                  title="Clear pattern"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </Button>
-              )}
-
-              {/* Settings button - always visible */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowSettings(!showSettings)}
-                className={cn(showSettings && 'bg-secondary')}
-              >
-                <Settings className="w-5 h-5" />
-              </Button>
-            </div>
-          </div>
-        </header>
-
-        {/* Settings panel - collapsible */}
-        {showSettings && (
-          <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-secondary/30 space-y-4">
-            <div className="max-w-lg mx-auto space-y-4">
-              {/* Sequencer settings - always visible */}
-              <SequencerConfig
-                bpm={bpm}
-                stepCount={stepCount}
-                tracks={DRUM_SOUNDS}
-                hiddenTracks={hiddenTracks}
-                onBpmChange={setBpm}
-                onStepCountChange={handleStepCountChange}
-                onToggleTrackVisibility={toggleTrackVisibility}
-              />
-
-              {/* Synth settings - when on synth page */}
-              {currentPage === 1 && (
-                <SynthConfig
-                  settings={synthSettings}
-                  onWaveformChange={handleWaveformChange}
-                  onOctaveChange={handleOctaveChange}
-                  onDetuneChange={handleDetuneChange}
-                  onAttackChange={handleAttackChange}
-                  onReleaseChange={handleReleaseChange}
-                  onFilterChange={handleFilterChange}
-                />
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Static Sequencer - shows all tracks */}
-        {showSequencer && (
-          <div className="flex-shrink-0 py-3 border-b border-border">
-            <StepSequencer
-              pattern={pattern}
-              sounds={ALL_SOUNDS_FOR_DISPLAY}
-              selectedStep={selectedStep}
-              currentStep={currentStep}
-              isPlaying={isPlaying}
-              stepCount={stepCount}
-              hiddenTracks={hiddenTracks}
-              onStepSelect={handleStepSelect}
-            />
-          </div>
-        )}
-
-        {/* Swipeable instrument area */}
+        {/* Swipeable page container */}
         <div
           className="flex-1 overflow-hidden relative"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          {/* Instruments container - slides horizontally */}
+          {/* Pages container - slides horizontally */}
           <div
             className="flex h-full transition-transform duration-300 ease-out"
             style={{ transform: `translateX(-${currentPage * 100}%)` }}
           >
-            {/* Drum Pads */}
-            <div className="w-full h-full flex-shrink-0 flex items-center justify-center">
-              <DrumPadGrid sounds={DRUM_SOUNDS} onTrigger={handleDrumTrigger} />
+            {/* Drum Pad Page */}
+            <div className="w-full h-full flex-shrink-0">
+              <DrumPadPage onNavigate={setCurrentPage} />
             </div>
 
-            {/* Piano Keyboard */}
-            <div className="w-full h-full flex-shrink-0 flex items-center justify-center p-4">
-              <PianoKeyboard onTrigger={handleSynthTrigger} className="w-full max-w-2xl" />
+            {/* Synth Page */}
+            <div className="w-full h-full flex-shrink-0">
+              <SynthPage onNavigate={setCurrentPage} />
             </div>
           </div>
 
@@ -415,4 +181,24 @@ function App() {
   )
 }
 
-export default App
+// Root App component with providers
+function App() {
+  return (
+    <AudioProvider>
+      <SequencerProvider>
+        <AppContent />
+      </SequencerProvider>
+    </AudioProvider>
+  )
+}
+
+// Wrap with error boundary for graceful error handling
+function AppWithErrorBoundary() {
+  return (
+    <AudioErrorBoundary>
+      <App />
+    </AudioErrorBoundary>
+  )
+}
+
+export default AppWithErrorBoundary

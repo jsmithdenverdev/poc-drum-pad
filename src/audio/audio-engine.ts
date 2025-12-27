@@ -1,13 +1,12 @@
 import type { DrumSound, AudioEngineState } from '@/types/audio.types'
 import { synthEngine } from './synth-engine'
+import { audioContextManager } from './audio-context-manager'
 
 class AudioEngine {
-  private context: AudioContext | null = null
   private buffers: Map<string, AudioBuffer> = new Map()
   private gainNode: GainNode | null = null
   private _state: AudioEngineState = 'uninitialized'
   private stateListeners: Set<(state: AudioEngineState) => void> = new Set()
-  private resumeListeners: Set<() => void> = new Set()
 
   get state(): AudioEngineState {
     return this._state
@@ -25,38 +24,24 @@ class AudioEngine {
     }
   }
 
-  // Called when audio context is resumed after being suspended
-  onResume(listener: () => void): () => void {
-    this.resumeListeners.add(listener)
-    return () => {
-      this.resumeListeners.delete(listener)
-    }
-  }
-
   async init(sounds: DrumSound[]): Promise<void> {
-    if (this.context) {
+    const context = audioContextManager.getContext()
+    if (context) {
       // Resume if suspended (iOS requirement)
-      if (this.context.state === 'suspended') {
-        await this.context.resume()
-      }
+      await audioContextManager.ensureRunning()
       return
     }
 
     try {
       this.setState('loading')
-      this.context = new AudioContext()
-      this.gainNode = this.context.createGain()
-      this.gainNode.connect(this.context.destination)
-
-      // Listen for state changes on the context
-      this.context.onstatechange = () => {
-        console.log(`AudioContext state changed: ${this.context?.state}`)
-      }
+      const newContext = audioContextManager.createContext()
+      this.gainNode = newContext.createGain()
+      this.gainNode.connect(newContext.destination)
 
       await this.loadSounds(sounds)
 
       // Initialize synth engine with the audio context
-      synthEngine.setContext(this.context, this.gainNode)
+      synthEngine.setContext(newContext, this.gainNode)
 
       this.setState('ready')
     } catch (error) {
@@ -66,41 +51,28 @@ class AudioEngine {
     }
   }
 
-  // Explicitly resume the audio context (call on user interaction after visibility change)
+  /**
+   * Explicitly resume the audio context (call on user interaction after visibility change).
+   * Delegates to the centralized AudioContextManager.
+   */
   async resume(): Promise<boolean> {
-    if (!this.context) return false
-
-    if (this.context.state === 'suspended') {
-      console.log('Resuming suspended audio context...')
-      try {
-        await this.context.resume()
-        // Wait a small amount of time for the context to fully resume
-        await new Promise(resolve => setTimeout(resolve, 50))
-      } catch (error) {
-        console.error('Failed to resume audio context:', error)
-        return false
-      }
-    }
-
-    const isRunning = this.context.state === 'running'
-    console.log(`Audio context state after resume: ${this.context.state}`)
-
-    if (isRunning) {
-      this.resumeListeners.forEach(listener => listener())
-    }
-
-    return isRunning
+    return await audioContextManager.ensureRunning()
   }
 
   get isSuspended(): boolean {
-    return this.context?.state === 'suspended'
+    return audioContextManager.isSuspended
   }
 
   get isRunning(): boolean {
-    return this.context?.state === 'running'
+    return audioContextManager.isRunning
   }
 
   private async loadSounds(sounds: DrumSound[]): Promise<void> {
+    const context = audioContextManager.getContext()
+    if (!context) {
+      throw new Error('AudioContext not initialized')
+    }
+
     const loadPromises = sounds.map(async (sound) => {
       try {
         const response = await fetch(sound.url)
@@ -120,7 +92,7 @@ class AudioEngine {
         const arrayBuffer = await response.arrayBuffer()
         console.log(`${sound.name} size: ${arrayBuffer.byteLength} bytes`)
 
-        const audioBuffer = await this.context!.decodeAudioData(arrayBuffer)
+        const audioBuffer = await context.decodeAudioData(arrayBuffer)
         this.buffers.set(sound.id, audioBuffer)
         console.log(`Loaded: ${sound.name}`)
       } catch (error) {
@@ -134,20 +106,16 @@ class AudioEngine {
   }
 
   async play(soundId: string): Promise<void> {
-    if (!this.context || !this.gainNode) {
+    const context = audioContextManager.getContext()
+    if (!context || !this.gainNode) {
       console.warn('Audio engine not initialized')
       return
     }
 
-    // Resume if suspended (iOS / backgrounded)
-    if (this.context.state === 'suspended') {
-      console.log('Resuming suspended audio context before play')
-      await this.resume()
-    }
-
-    // Double-check we're in running state
-    if (this.context.state !== 'running') {
-      console.warn(`Cannot play - context state is: ${this.context.state}`)
+    // Ensure audio context is running
+    const isRunning = await audioContextManager.ensureRunning()
+    if (!isRunning) {
+      console.warn('Cannot play - failed to resume audio context')
       return
     }
 
@@ -158,7 +126,7 @@ class AudioEngine {
     }
 
     try {
-      const source = this.context.createBufferSource()
+      const source = context.createBufferSource()
       source.buffer = buffer
       source.connect(this.gainNode)
       source.start(0)
@@ -169,17 +137,18 @@ class AudioEngine {
 
   // Test tone to verify audio output works
   playTestTone(): void {
-    if (!this.context || !this.gainNode) {
+    const context = audioContextManager.getContext()
+    if (!context || !this.gainNode) {
       console.warn('Cannot play test tone - not initialized')
       return
     }
     console.log('Playing test tone...')
-    const oscillator = this.context.createOscillator()
+    const oscillator = context.createOscillator()
     oscillator.type = 'sine'
     oscillator.frequency.value = 440
     oscillator.connect(this.gainNode)
     oscillator.start()
-    oscillator.stop(this.context.currentTime + 0.2)
+    oscillator.stop(context.currentTime + 0.2)
   }
 
   setVolume(volume: number): void {
@@ -194,18 +163,16 @@ class AudioEngine {
 
   // Play a synth note immediately
   async playSynth(noteId: string): Promise<void> {
-    if (!this.context || !this.gainNode) {
+    const context = audioContextManager.getContext()
+    if (!context || !this.gainNode) {
       console.warn('Audio engine not initialized')
       return
     }
 
-    // Resume if suspended (iOS / backgrounded)
-    if (this.context.state === 'suspended') {
-      await this.resume()
-    }
-
-    if (this.context.state !== 'running') {
-      console.warn(`Cannot play synth - context state is: ${this.context.state}`)
+    // Ensure audio context is running
+    const isRunning = await audioContextManager.ensureRunning()
+    if (!isRunning) {
+      console.warn('Cannot play synth - failed to resume audio context')
       return
     }
 
@@ -214,10 +181,11 @@ class AudioEngine {
 
   // Schedule a sound to play at a specific time (for sequencer)
   schedulePlay(soundId: string, time: number, isSynth: boolean = false): void {
-    if (!this.context || !this.gainNode) return
+    const context = audioContextManager.getContext()
+    if (!context || !this.gainNode) return
 
     // Don't schedule if context is suspended - sequencer should stop
-    if (this.context.state === 'suspended') return
+    if (audioContextManager.isSuspended) return
 
     if (isSynth) {
       synthEngine.scheduleNote(soundId, time)
@@ -227,24 +195,21 @@ class AudioEngine {
     const buffer = this.buffers.get(soundId)
     if (!buffer) return
 
-    const source = this.context.createBufferSource()
+    const source = context.createBufferSource()
     source.buffer = buffer
     source.connect(this.gainNode)
     source.start(time)
   }
 
   getCurrentTime(): number {
-    return this.context?.currentTime ?? 0
+    return audioContextManager.currentTime
   }
 
   dispose(): void {
-    if (this.context) {
-      this.context.close()
-      this.context = null
-      this.gainNode = null
-      this.buffers.clear()
-      this.setState('uninitialized')
-    }
+    audioContextManager.dispose()
+    this.gainNode = null
+    this.buffers.clear()
+    this.setState('uninitialized')
   }
 }
 
