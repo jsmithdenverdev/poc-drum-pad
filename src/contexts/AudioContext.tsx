@@ -8,6 +8,8 @@ interface AudioContextValue {
   init: () => Promise<void>
   play: (soundId: string) => Promise<void>
   playSynth: (noteId: string) => Promise<void>
+  noteOn: (noteId: string) => Promise<void>
+  noteOff: (noteId: string) => void
   needsInit: boolean
   isLoading: boolean
   hasError: boolean
@@ -26,7 +28,7 @@ interface AudioContextValue {
 const AudioContext = createContext<AudioContextValue | undefined>(undefined)
 
 export function AudioProvider({ children }: { children: ReactNode }) {
-  const { init, play, playSynth, needsInit, isLoading, hasError, error } = useAudioEngine(DRUM_SOUNDS)
+  const { init, play, playSynth, noteOn, noteOff, needsInit, isLoading, hasError, error } = useAudioEngine(DRUM_SOUNDS)
   const [synthSettings, setSynthSettings] = useState<SynthSettings>(DEFAULT_SYNTH_SETTINGS)
 
   const handleWaveformChange = useCallback((waveform: WaveformType) => {
@@ -65,6 +67,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         init,
         play,
         playSynth,
+        noteOn,
+        noteOff,
         needsInit,
         isLoading,
         hasError,

@@ -17,7 +17,8 @@ interface SynthPageProps {
 
 export function SynthPage({ onNavigate: _onNavigate }: SynthPageProps) {
   const {
-    playSynth,
+    noteOn,
+    noteOff,
     synthSettings,
     handleWaveformChange,
     handleOctaveChange,
@@ -48,15 +49,20 @@ export function SynthPage({ onNavigate: _onNavigate }: SynthPageProps) {
     handleStepCountChange,
   } = useSequencerContext()
 
-  const handleTrigger = useCallback((noteId: string) => {
-    // Always play the sound
-    playSynth(noteId)
+  const handleNoteOn = useCallback((noteId: string) => {
+    // Start sustained note
+    noteOn(noteId)
 
     // Only add to sequence if: sequencer visible, step selected, and NOT playing
     if (showSequencer && selectedStep !== null && !isPlaying) {
       toggleSoundOnStep(noteId, selectedStep, 'synth')
     }
-  }, [playSynth, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
+  }, [noteOn, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
+
+  const handleNoteOff = useCallback((noteId: string) => {
+    // Stop sustained note
+    noteOff(noteId)
+  }, [noteOff])
 
   return (
     <div className="h-full w-full flex flex-col">
@@ -157,7 +163,7 @@ export function SynthPage({ onNavigate: _onNavigate }: SynthPageProps) {
 
       {/* Piano keyboard - flex grow to fill remaining space */}
       <div className="flex-1 flex items-center justify-center min-h-0 p-4">
-        <PianoKeyboard onTrigger={handleTrigger} className="w-full max-w-2xl" />
+        <PianoKeyboard onNoteOn={handleNoteOn} onNoteOff={handleNoteOff} className="w-full max-w-2xl" />
       </div>
     </div>
   )

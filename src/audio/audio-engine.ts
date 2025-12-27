@@ -161,7 +161,7 @@ class AudioEngine {
     return this.gainNode?.gain.value ?? 1
   }
 
-  // Play a synth note immediately
+  // Play a synth note immediately (one-shot for sequencer)
   async playSynth(noteId: string): Promise<void> {
     const context = audioContextManager.getContext()
     if (!context || !this.gainNode) {
@@ -177,6 +177,29 @@ class AudioEngine {
     }
 
     synthEngine.playNote(noteId)
+  }
+
+  // Start a sustained synth note (for manual playing)
+  async noteOn(noteId: string): Promise<void> {
+    const context = audioContextManager.getContext()
+    if (!context || !this.gainNode) {
+      console.warn('Audio engine not initialized')
+      return
+    }
+
+    // Ensure audio context is running
+    const isRunning = await audioContextManager.ensureRunning()
+    if (!isRunning) {
+      console.warn('Cannot start note - failed to resume audio context')
+      return
+    }
+
+    synthEngine.noteOn(noteId)
+  }
+
+  // Stop a sustained synth note (for manual playing)
+  noteOff(noteId: string): void {
+    synthEngine.noteOff(noteId)
   }
 
   // Schedule a sound to play at a specific time (for sequencer)

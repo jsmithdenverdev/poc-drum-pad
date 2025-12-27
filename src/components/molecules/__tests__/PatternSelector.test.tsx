@@ -9,22 +9,19 @@ describe('PatternSelector', () => {
       id: 'pattern1',
       name: 'Pattern 1',
       bpm: 120,
-      steps: 16,
-      sequences: [],
+      tracks: [],
     },
     {
       id: 'pattern2',
       name: 'Pattern 2',
       bpm: 140,
-      steps: 16,
-      sequences: [],
+      tracks: [],
     },
     {
       id: 'pattern3',
       name: 'Pattern 3',
       bpm: 100,
-      steps: 16,
-      sequences: [],
+      tracks: [],
     },
   ]
 

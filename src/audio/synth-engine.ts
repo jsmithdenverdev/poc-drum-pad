@@ -92,6 +92,12 @@ export const DEFAULT_SYNTH_SETTINGS: SynthSettings = {
   filterCutoff: 8000,
 }
 
+interface ActiveNote {
+  oscillator: OscillatorNode
+  envelope: GainNode
+  filter: BiquadFilterNode
+}
+
 class SynthEngine {
   private context: AudioContext | null = null
   private gainNode: GainNode | null = null
@@ -102,6 +108,7 @@ class SynthEngine {
     sustain: 0.3,
     release: 0.3,
   }
+  private activeNotes: Map<string, ActiveNote> = new Map()
 
   setContext(context: AudioContext, gainNode: GainNode): void {
     this.context = context
@@ -164,6 +171,83 @@ class SynthEngine {
 
   setEnvelope(settings: Partial<EnvelopeSettings>): void {
     this.envelope = { ...this.envelope, ...settings }
+  }
+
+  // Start a sustained note (for manual playing with noteOn/noteOff)
+  noteOn(noteId: string): void {
+    if (!this.context || !this.gainNode) return
+
+    // Stop existing note if any
+    this.noteOff(noteId)
+
+    const note = SYNTH_NOTES.find(n => n.id === noteId)
+    if (!note) {
+      console.warn(`Synth note not found: ${noteId}`)
+      return
+    }
+
+    // Apply octave shift
+    const frequency = note.frequency * Math.pow(2, this.settings.octave)
+
+    const { attack, decay, sustain } = this.envelope
+    const now = this.context.currentTime
+
+    // Create oscillator
+    const oscillator = this.context.createOscillator()
+    oscillator.type = this.settings.waveform
+    oscillator.frequency.value = frequency
+    oscillator.detune.value = this.settings.detune
+
+    // Create low-pass filter
+    const filter = this.context.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.value = this.settings.filterCutoff
+    filter.Q.value = 1
+
+    // Create envelope gain node
+    const envelopeGain = this.context.createGain()
+    envelopeGain.gain.setValueAtTime(0, now)
+
+    // Attack
+    envelopeGain.gain.linearRampToValueAtTime(0.5, now + attack)
+
+    // Decay to sustain
+    envelopeGain.gain.linearRampToValueAtTime(sustain * 0.5, now + attack + decay)
+
+    // Connect: oscillator -> filter -> envelope -> main gain -> destination
+    oscillator.connect(filter)
+    filter.connect(envelopeGain)
+    envelopeGain.connect(this.gainNode)
+
+    // Start oscillator
+    oscillator.start(now)
+
+    // Store active note
+    this.activeNotes.set(noteId, { oscillator, envelope: envelopeGain, filter })
+  }
+
+  // Stop a sustained note (for manual playing)
+  noteOff(noteId: string): void {
+    const activeNote = this.activeNotes.get(noteId)
+    if (!activeNote || !this.context) return
+
+    const { oscillator, envelope: envelopeGain } = activeNote
+    const { release } = this.envelope
+    const now = this.context.currentTime
+
+    // Cancel any scheduled changes and get current gain value
+    envelopeGain.gain.cancelScheduledValues(now)
+    const currentGain = envelopeGain.gain.value
+
+    // Apply release envelope from current value
+    envelopeGain.gain.setValueAtTime(currentGain, now)
+    envelopeGain.gain.linearRampToValueAtTime(0, now + release)
+
+    // Stop oscillator after release
+    oscillator.stop(now + release + 0.1)
+
+    // Remove from active notes
+    this.activeNotes.delete(noteId)
   }
 
   // Play a note immediately (for pad triggers)
