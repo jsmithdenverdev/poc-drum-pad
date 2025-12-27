@@ -18,7 +18,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 import { PlayButton } from '@/components/atoms/PlayButton'
-import { Volume2, AlertTriangle, RefreshCw, Settings, Trash2 } from 'lucide-react'
+import { Volume2, AlertTriangle, RefreshCw, Menu, Trash2 } from 'lucide-react'
 import { AudioProvider, SequencerProvider, useAudio, useSequencerContext } from '@/contexts'
 import { SWIPE_THRESHOLD, DRUM_SOUNDS, ALL_SOUNDS_FOR_DISPLAY } from '@/constants'
 import { PRESET_PATTERNS } from '@/constants/preset-patterns'
@@ -247,7 +247,20 @@ function AppContent() {
         {/* Header - static */}
         <header className="flex-shrink-0 px-4 py-2 border-b border-border">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">{instrumentNames[currentPage]}</h1>
+            {/* Left side - Menu button and title */}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSettings(!showSettings)}
+                className={cn(showSettings && 'bg-secondary')}
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+              <h1 className="text-xl font-bold">{instrumentNames[currentPage]}</h1>
+            </div>
+
+            {/* Right side - Controls */}
             <div className="flex items-center gap-3">
               {/* Sequencer toggle */}
               <div className="flex items-center gap-2">
@@ -279,23 +292,13 @@ function AppContent() {
               >
                 <Trash2 className="w-5 h-5" />
               </Button>
-
-              {/* Settings button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowSettings(!showSettings)}
-                className={cn(showSettings && 'bg-secondary')}
-              >
-                <Settings className="w-5 h-5" />
-              </Button>
             </div>
           </div>
         </header>
 
         {/* Settings drawer */}
         <Sheet open={showSettings} onOpenChange={setShowSettings}>
-          <SheetContent side="right" className="overflow-y-auto">
+          <SheetContent side="left" className="overflow-y-auto">
             <SheetHeader className="mb-6">
               <SheetTitle>Settings</SheetTitle>
               <SheetDescription>
@@ -304,34 +307,43 @@ function AppContent() {
             </SheetHeader>
 
             <div className="space-y-6">
-              {/* Pattern Selector - only when sequencer is on */}
+              {/* Patterns Section */}
               {showSequencer && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    Preset Patterns
-                  </label>
+                <section className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2">
+                    Patterns
+                  </h3>
                   <PatternSelector
                     patterns={PRESET_PATTERNS}
                     currentPatternId={pattern.id}
                     onSelectPattern={loadPattern}
                   />
-                </div>
+                </section>
               )}
 
-              <SequencerConfig
-                bpm={bpm}
-                stepCount={stepCount}
-                tracks={DRUM_SOUNDS}
-                hiddenTracks={hiddenTracks}
-                trackVolumes={trackVolumes}
-                onBpmChange={setBpm}
-                onStepCountChange={handleStepCountChange}
-                onToggleTrackVisibility={toggleTrackVisibility}
-                onTrackVolumeChange={setTrackVolume}
-              />
+              {/* Sequencer Section */}
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2">
+                  Sequencer
+                </h3>
+                <SequencerConfig
+                  bpm={bpm}
+                  stepCount={stepCount}
+                  tracks={DRUM_SOUNDS}
+                  hiddenTracks={hiddenTracks}
+                  trackVolumes={trackVolumes}
+                  onBpmChange={setBpm}
+                  onStepCountChange={handleStepCountChange}
+                  onToggleTrackVisibility={toggleTrackVisibility}
+                  onTrackVolumeChange={setTrackVolume}
+                />
+              </section>
 
-              {/* Synth settings - only on synth page */}
-              {currentPage === 1 && (
+              {/* Synth Section */}
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2">
+                  Synth
+                </h3>
                 <SynthConfig
                   settings={synthSettings}
                   onWaveformChange={handleWaveformChange}
@@ -341,7 +353,7 @@ function AppContent() {
                   onReleaseChange={handleReleaseChange}
                   onFilterChange={handleFilterChange}
                 />
-              )}
+              </section>
             </div>
           </SheetContent>
         </Sheet>
