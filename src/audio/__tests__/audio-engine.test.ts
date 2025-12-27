@@ -17,7 +17,7 @@ describe('AudioEngine', () => {
     vi.clearAllMocks()
 
     // Mock fetch to return fake audio data
-    global.fetch = vi.fn().mockImplementation((url: string) => {
+    ;(globalThis as Record<string, unknown>).fetch = vi.fn().mockImplementation((_url: string) => {
       return Promise.resolve({
         ok: true,
         status: 200,
@@ -35,9 +35,9 @@ describe('AudioEngine', () => {
 
       expect(audioEngine.state).toBe('ready')
       expect(audioContextManager.getContext()).toBeDefined()
-      expect(global.fetch).toHaveBeenCalledTimes(2)
-      expect(global.fetch).toHaveBeenCalledWith('/sounds/kick.wav')
-      expect(global.fetch).toHaveBeenCalledWith('/sounds/snare.wav')
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2)
+      expect(globalThis.fetch).toHaveBeenCalledWith('/sounds/kick.wav')
+      expect(globalThis.fetch).toHaveBeenCalledWith('/sounds/snare.wav')
     })
 
     it('should set up synth engine with context', async () => {
@@ -85,7 +85,7 @@ describe('AudioEngine', () => {
     })
 
     it('should handle fetch failures gracefully for individual sounds', async () => {
-      global.fetch = vi.fn().mockImplementation((url: string) => {
+      ;(globalThis as Record<string, unknown>).fetch = vi.fn().mockImplementation((url: string) => {
         if (url.includes('kick')) {
           return Promise.reject(new Error('Not found'))
         }
@@ -106,7 +106,7 @@ describe('AudioEngine', () => {
     })
 
     it('should skip non-audio content types', async () => {
-      global.fetch = vi.fn().mockResolvedValue({
+      ;(globalThis as Record<string, unknown>).fetch = vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
         headers: {

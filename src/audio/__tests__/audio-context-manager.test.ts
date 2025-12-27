@@ -111,10 +111,9 @@ describe('AudioContextManager', () => {
 
       const context = audioContextManager.createContext()
 
-      // Trigger state change
-      if (context.onstatechange) {
-        context.onstatechange()
-      }
+      // Trigger state change (cast to bypass mock type mismatch)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(context.onstatechange as any)?.()
 
       expect(listener).toHaveBeenCalledWith('running')
     })
@@ -129,9 +128,8 @@ describe('AudioContextManager', () => {
       const context = audioContextManager.createContext()
 
       // Trigger state change
-      if (context.onstatechange) {
-        context.onstatechange()
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(context.onstatechange as any)?.()
 
       expect(listener1).toHaveBeenCalled()
       expect(listener2).toHaveBeenCalled()
@@ -146,9 +144,8 @@ describe('AudioContextManager', () => {
       const context = audioContextManager.createContext()
 
       // Trigger state change
-      if (context.onstatechange) {
-        context.onstatechange()
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(context.onstatechange as any)?.()
 
       expect(listener).not.toHaveBeenCalled()
     })
@@ -175,9 +172,8 @@ describe('AudioContextManager', () => {
 
       // Create a new context and trigger state change
       const newContext = audioContextManager.createContext()
-      if (newContext.onstatechange) {
-        newContext.onstatechange()
-      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(newContext.onstatechange as any)?.()
 
       // Old listener should not be called
       expect(listener).not.toHaveBeenCalled()

@@ -44,7 +44,7 @@ class MockAudioContext {
     }
   }
 
-  decodeAudioData(buffer: ArrayBuffer) {
+  decodeAudioData(_buffer: ArrayBuffer) {
     return Promise.resolve({ duration: 1, length: 44100, numberOfChannels: 2 })
   }
 
@@ -61,7 +61,6 @@ class MockAudioContext {
   }
 }
 
-// @ts-ignore
-global.AudioContext = MockAudioContext
-// @ts-ignore
-global.fetch = vi.fn()
+// Set up global mocks
+;(globalThis as Record<string, unknown>).AudioContext = MockAudioContext
+;(globalThis as Record<string, unknown>).fetch = vi.fn()
