@@ -1,22 +1,122 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import { DebugDrawer } from '@/components/organisms/DebugDrawer'
 import { AudioErrorBoundary } from '@/components/organisms/AudioErrorBoundary'
 import { LandscapeLayout } from '@/components/templates/LandscapeLayout'
-import { DrumPadPage } from '@/components/pages/DrumPadPage'
-import { SynthPage } from '@/components/pages/SynthPage'
+import { DrumPadGrid } from '@/components/organisms/DrumPadGrid'
+import { PianoKeyboard } from '@/components/organisms/PianoKeyboard'
+import { StepSequencer } from '@/components/organisms/StepSequencer'
+import { SequencerConfig } from '@/components/molecules/SequencerConfig'
+import { SynthConfig } from '@/components/molecules/SynthConfig'
+import { PatternSelector } from '@/components/molecules/PatternSelector'
 import { Button } from '@/components/ui/button'
-import { Volume2, AlertTriangle, RefreshCw } from 'lucide-react'
-import { AudioProvider, SequencerProvider, useAudio } from '@/contexts'
-import { SWIPE_THRESHOLD } from '@/constants'
+import { Switch } from '@/components/ui/switch'
+import { PlayButton } from '@/components/atoms/PlayButton'
+import { Volume2, AlertTriangle, RefreshCw, Settings, Trash2 } from 'lucide-react'
+import { AudioProvider, SequencerProvider, useAudio, useSequencerContext } from '@/contexts'
+import { SWIPE_THRESHOLD, DRUM_SOUNDS, ALL_SOUNDS_FOR_DISPLAY } from '@/constants'
+import { PRESET_PATTERNS } from '@/constants/preset-patterns'
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 import { cn } from '@/lib/utils'
 
 // Main app content (needs to be inside providers)
 function AppContent() {
   const [currentPage, setCurrentPage] = useState(0) // 0 = drums, 1 = synth
-  const { init, needsInit, isLoading, hasError, error } = useAudio()
+  const {
+    init,
+    needsInit,
+    isLoading,
+    hasError,
+    error,
+    play,
+    noteOn,
+    noteOff,
+    synthSettings,
+    handleWaveformChange,
+    handleOctaveChange,
+    handleDetuneChange,
+    handleAttackChange,
+    handleReleaseChange,
+    handleFilterChange,
+  } = useAudio()
+
+  const {
+    pattern,
+    isPlaying,
+    currentStep,
+    bpm,
+    stepCount,
+    hiddenTracks,
+    toggle,
+    setBpm,
+    toggleTrackVisibility,
+    setTrackVolume,
+    showSequencer,
+    setShowSequencer,
+    selectedStep,
+    showSettings,
+    setShowSettings,
+    toggleSoundOnStep,
+    clearPattern,
+    handleStepSelect,
+    handleStepCountChange,
+    loadPattern,
+    copyStep,
+    pasteStep,
+    undo,
+    redo,
+  } = useSequencerContext()
 
   // Swipe tracking
   const touchStartX = useRef<number | null>(null)
+
+  // Create track volumes Map from pattern
+  const trackVolumes = useMemo(() => {
+    const volumes = new Map<string, number>()
+    pattern.tracks.forEach(track => {
+      volumes.set(track.soundId, track.volume ?? 1)
+    })
+    return volumes
+  }, [pattern.tracks])
+
+  // Handle drum trigger
+  const handleDrumTrigger = useCallback((soundId: string) => {
+    play(soundId)
+    if (showSequencer && selectedStep !== null && !isPlaying) {
+      toggleSoundOnStep(soundId, selectedStep, 'drum')
+    }
+  }, [play, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
+
+  // Handle synth note on
+  const handleNoteOn = useCallback((noteId: string) => {
+    noteOn(noteId)
+    if (showSequencer && selectedStep !== null && !isPlaying) {
+      toggleSoundOnStep(noteId, selectedStep, 'synth')
+    }
+  }, [noteOn, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
+
+  // Handle synth note off
+  const handleNoteOff = useCallback((noteId: string) => {
+    noteOff(noteId)
+  }, [noteOff])
+
+  // Handle copy/paste
+  const handleCopy = useCallback(() => {
+    if (selectedStep !== null) copyStep(selectedStep)
+  }, [selectedStep, copyStep])
+
+  const handlePaste = useCallback(() => {
+    if (selectedStep !== null) pasteStep(selectedStep)
+  }, [selectedStep, pasteStep])
+
+  // Keyboard shortcuts (only active on drum page)
+  useKeyboardShortcuts({
+    onTrigger: currentPage === 0 ? handleDrumTrigger : undefined,
+    onUndo: undo,
+    onRedo: redo,
+    onCopy: handleCopy,
+    onPaste: handlePaste,
+    enabled: true,
+  })
 
   // Handle touch start
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -45,6 +145,8 @@ function AppContent() {
   const handleInit = useCallback(async () => {
     await init()
   }, [init])
+
+  const instrumentNames = ['Drum Pad', 'Synth']
 
   // Show init screen if audio not ready
   if (needsInit) {
@@ -135,30 +237,146 @@ function AppContent() {
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
-        {/* Swipeable page container */}
+        {/* Header - static */}
+        <header className="flex-shrink-0 px-4 py-2 border-b border-border">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-bold">{instrumentNames[currentPage]}</h1>
+            <div className="flex items-center gap-3">
+              {/* Sequencer toggle */}
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="sequencer-toggle"
+                  className="text-sm text-muted-foreground hidden sm:inline"
+                >
+                  Seq
+                </label>
+                <Switch
+                  id="sequencer-toggle"
+                  checked={showSequencer}
+                  onCheckedChange={setShowSequencer}
+                />
+              </div>
+
+              {/* Play button - only when sequencer is on */}
+              {showSequencer && (
+                <PlayButton isPlaying={isPlaying} onToggle={toggle} />
+              )}
+
+              {/* Clear button */}
+              {showSequencer && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={clearPattern}
+                  title="Clear pattern"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </Button>
+              )}
+
+              {/* Settings button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSettings(!showSettings)}
+                className={cn(showSettings && 'bg-secondary')}
+              >
+                <Settings className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        {/* Settings panel - static, collapsible */}
+        {showSettings && (
+          <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-secondary/30 space-y-4">
+            <div className="max-w-lg mx-auto space-y-4">
+              {/* Pattern Selector - only when sequencer is on */}
+              {showSequencer && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    Preset Patterns
+                  </label>
+                  <PatternSelector
+                    patterns={PRESET_PATTERNS}
+                    currentPatternId={pattern.id}
+                    onSelectPattern={loadPattern}
+                  />
+                </div>
+              )}
+
+              <SequencerConfig
+                bpm={bpm}
+                stepCount={stepCount}
+                tracks={DRUM_SOUNDS}
+                hiddenTracks={hiddenTracks}
+                trackVolumes={trackVolumes}
+                onBpmChange={setBpm}
+                onStepCountChange={handleStepCountChange}
+                onToggleTrackVisibility={toggleTrackVisibility}
+                onTrackVolumeChange={setTrackVolume}
+              />
+
+              {/* Synth settings - only on synth page */}
+              {currentPage === 1 && (
+                <SynthConfig
+                  settings={synthSettings}
+                  onWaveformChange={handleWaveformChange}
+                  onOctaveChange={handleOctaveChange}
+                  onDetuneChange={handleDetuneChange}
+                  onAttackChange={handleAttackChange}
+                  onReleaseChange={handleReleaseChange}
+                  onFilterChange={handleFilterChange}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Sequencer - static above instruments */}
+        {showSequencer && (
+          <div className="flex-shrink-0 py-3 border-b border-border">
+            <StepSequencer
+              pattern={pattern}
+              sounds={ALL_SOUNDS_FOR_DISPLAY}
+              selectedStep={selectedStep}
+              currentStep={currentStep}
+              isPlaying={isPlaying}
+              stepCount={stepCount}
+              hiddenTracks={hiddenTracks}
+              onStepSelect={handleStepSelect}
+            />
+          </div>
+        )}
+
+        {/* Swipeable instrument area */}
         <div
-          className="flex-1 overflow-hidden relative"
+          className="flex-1 overflow-hidden relative min-h-0"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          {/* Pages container - slides horizontally */}
+          {/* Instruments container - slides horizontally */}
           <div
             className="flex h-full transition-transform duration-300 ease-out"
             style={{ transform: `translateX(-${currentPage * 100}%)` }}
           >
-            {/* Drum Pad Page */}
-            <div className="w-full h-full flex-shrink-0">
-              <DrumPadPage onNavigate={setCurrentPage} />
+            {/* Drum Pads */}
+            <div className="w-full h-full flex-shrink-0 flex items-center justify-center">
+              <DrumPadGrid sounds={DRUM_SOUNDS} onTrigger={handleDrumTrigger} />
             </div>
 
-            {/* Synth Page */}
-            <div className="w-full h-full flex-shrink-0">
-              <SynthPage onNavigate={setCurrentPage} />
+            {/* Piano Keyboard */}
+            <div className="w-full h-full flex-shrink-0 flex items-center justify-center p-4">
+              <PianoKeyboard
+                onNoteOn={handleNoteOn}
+                onNoteOff={handleNoteOff}
+                className="w-full max-w-2xl"
+              />
             </div>
           </div>
 
           {/* Page indicator dots */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 z-10">
             {[0, 1].map(index => (
               <button
                 key={index}
@@ -169,7 +387,7 @@ function AppContent() {
                     : 'bg-muted-foreground/30 hover:bg-muted-foreground/50',
                 )}
                 onClick={() => setCurrentPage(index)}
-                aria-label={index === 0 ? 'Drum Pad' : 'Synth'}
+                aria-label={instrumentNames[index]}
               />
             ))}
           </div>

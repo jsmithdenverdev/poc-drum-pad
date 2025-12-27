@@ -161,7 +161,7 @@ class AudioEngine {
     return this.gainNode?.gain.value ?? 1
   }
 
-  // Play a synth note immediately
+  // Play a synth note immediately (one-shot for sequencer)
   async playSynth(noteId: string): Promise<void> {
     const context = audioContextManager.getContext()
     if (!context || !this.gainNode) {
@@ -179,8 +179,31 @@ class AudioEngine {
     synthEngine.playNote(noteId)
   }
 
+  // Start a sustained synth note (for manual playing)
+  async noteOn(noteId: string): Promise<void> {
+    const context = audioContextManager.getContext()
+    if (!context || !this.gainNode) {
+      console.warn('Audio engine not initialized')
+      return
+    }
+
+    // Ensure audio context is running
+    const isRunning = await audioContextManager.ensureRunning()
+    if (!isRunning) {
+      console.warn('Cannot start note - failed to resume audio context')
+      return
+    }
+
+    synthEngine.noteOn(noteId)
+  }
+
+  // Stop a sustained synth note (for manual playing)
+  noteOff(noteId: string): void {
+    synthEngine.noteOff(noteId)
+  }
+
   // Schedule a sound to play at a specific time (for sequencer)
-  schedulePlay(soundId: string, time: number, isSynth: boolean = false): void {
+  schedulePlay(soundId: string, time: number, isSynth: boolean = false, volume: number = 1): void {
     const context = audioContextManager.getContext()
     if (!context || !this.gainNode) return
 
@@ -188,7 +211,7 @@ class AudioEngine {
     if (audioContextManager.isSuspended) return
 
     if (isSynth) {
-      synthEngine.scheduleNote(soundId, time)
+      synthEngine.scheduleNote(soundId, time, volume)
       return
     }
 
@@ -197,7 +220,13 @@ class AudioEngine {
 
     const source = context.createBufferSource()
     source.buffer = buffer
-    source.connect(this.gainNode)
+
+    // Apply track volume via gain node
+    const trackGain = context.createGain()
+    trackGain.gain.value = Math.max(0, Math.min(1, volume))
+    source.connect(trackGain)
+    trackGain.connect(this.gainNode)
+
     source.start(time)
   }
 

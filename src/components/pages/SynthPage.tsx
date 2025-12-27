@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { PianoKeyboard } from '@/components/organisms/PianoKeyboard'
 import { StepSequencer } from '@/components/organisms/StepSequencer'
 import { SequencerConfig } from '@/components/molecules/SequencerConfig'
@@ -17,7 +17,8 @@ interface SynthPageProps {
 
 export function SynthPage({ onNavigate: _onNavigate }: SynthPageProps) {
   const {
-    playSynth,
+    noteOn,
+    noteOff,
     synthSettings,
     handleWaveformChange,
     handleOctaveChange,
@@ -37,6 +38,7 @@ export function SynthPage({ onNavigate: _onNavigate }: SynthPageProps) {
     toggle,
     setBpm,
     toggleTrackVisibility,
+    setTrackVolume,
     showSequencer,
     setShowSequencer,
     selectedStep,
@@ -48,15 +50,29 @@ export function SynthPage({ onNavigate: _onNavigate }: SynthPageProps) {
     handleStepCountChange,
   } = useSequencerContext()
 
-  const handleTrigger = useCallback((noteId: string) => {
-    // Always play the sound
-    playSynth(noteId)
+  // Create track volumes Map from pattern
+  const trackVolumes = useMemo(() => {
+    const volumes = new Map<string, number>()
+    pattern.tracks.forEach(track => {
+      volumes.set(track.soundId, track.volume ?? 1)
+    })
+    return volumes
+  }, [pattern.tracks])
+
+  const handleNoteOn = useCallback((noteId: string) => {
+    // Start sustained note
+    noteOn(noteId)
 
     // Only add to sequence if: sequencer visible, step selected, and NOT playing
     if (showSequencer && selectedStep !== null && !isPlaying) {
       toggleSoundOnStep(noteId, selectedStep, 'synth')
     }
-  }, [playSynth, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
+  }, [noteOn, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
+
+  const handleNoteOff = useCallback((noteId: string) => {
+    // Stop sustained note
+    noteOff(noteId)
+  }, [noteOff])
 
   return (
     <div className="h-full w-full flex flex-col">
@@ -120,9 +136,11 @@ export function SynthPage({ onNavigate: _onNavigate }: SynthPageProps) {
               stepCount={stepCount}
               tracks={DRUM_SOUNDS}
               hiddenTracks={hiddenTracks}
+              trackVolumes={trackVolumes}
               onBpmChange={setBpm}
               onStepCountChange={handleStepCountChange}
               onToggleTrackVisibility={toggleTrackVisibility}
+              onTrackVolumeChange={setTrackVolume}
             />
 
             {/* Synth settings - on synth page */}
@@ -157,7 +175,7 @@ export function SynthPage({ onNavigate: _onNavigate }: SynthPageProps) {
 
       {/* Piano keyboard - flex grow to fill remaining space */}
       <div className="flex-1 flex items-center justify-center min-h-0 p-4">
-        <PianoKeyboard onTrigger={handleTrigger} className="w-full max-w-2xl" />
+        <PianoKeyboard onNoteOn={handleNoteOn} onNoteOff={handleNoteOff} className="w-full max-w-2xl" />
       </div>
     </div>
   )

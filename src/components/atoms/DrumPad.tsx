@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react'
 import { cn } from '@/lib/utils'
+import { triggerHaptic } from '@/lib/haptics'
 
 interface DrumPadProps {
   id: string
@@ -13,6 +14,7 @@ export const DrumPad = React.memo(function DrumPad({ id, name, color, onTrigger,
   const [isAnimating, setIsAnimating] = useState(false)
 
   const handleTrigger = useCallback(() => {
+    triggerHaptic('light')
     setIsAnimating(true)
     onTrigger(id)
   }, [id, onTrigger])

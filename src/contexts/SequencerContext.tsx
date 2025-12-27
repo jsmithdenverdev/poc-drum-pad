@@ -1,9 +1,13 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { useSequencer } from '@/hooks/use-sequencer'
-import { usePatternStorage } from '@/hooks/use-pattern-storage'
+import { usePatternHistory } from '@/hooks/use-pattern-history'
 import { DEFAULT_PATTERN, MAX_STEPS } from '@/constants'
 import { PRESET_PATTERNS } from '@/constants/preset-patterns'
 import type { SequencerPattern, SoundType, StepCount } from '@/types/audio.types'
+
+interface StepClipboard {
+  sounds: Array<{ soundId: string; soundType: SoundType }>
+}
 
 interface SequencerContextValue {
   // Pattern state
@@ -20,6 +24,7 @@ interface SequencerContextValue {
   setBpm: (bpm: number) => void
   setStepCount: (count: StepCount) => void
   toggleTrackVisibility: (soundId: string) => void
+  setTrackVolume: (soundId: string, volume: number) => void
 
   // UI state
   showSequencer: boolean
@@ -35,15 +40,133 @@ interface SequencerContextValue {
   handleStepSelect: (stepIndex: number) => void
   handleStepCountChange: (newCount: StepCount) => void
   loadPattern: (patternId: string) => void
+
+  // Copy/Paste
+  clipboard: StepClipboard | null
+  copyStep: (stepIndex: number) => void
+  pasteStep: (stepIndex: number) => void
+
+  // Undo/Redo
+  undo: () => void
+  redo: () => void
+  canUndo: boolean
+  canRedo: boolean
 }
 
 const SequencerContext = createContext<SequencerContextValue | undefined>(undefined)
 
+const STORAGE_KEY = 'drum-pad-pattern'
+const SAVE_DEBOUNCE_MS = 500
+
+// Validate that an object matches the SequencerPattern shape
+function isValidPattern(obj: unknown): obj is SequencerPattern {
+  if (!obj || typeof obj !== 'object') return false
+
+  const pattern = obj as Partial<SequencerPattern>
+
+  // Check required fields
+  if (typeof pattern.id !== 'string') return false
+  if (typeof pattern.name !== 'string') return false
+  if (typeof pattern.bpm !== 'number') return false
+  if (!Array.isArray(pattern.tracks)) return false
+
+  // Validate tracks structure
+  return pattern.tracks.every(track => {
+    if (!track || typeof track !== 'object') return false
+    if (typeof track.soundId !== 'string') return false
+    if (track.soundType !== 'drum' && track.soundType !== 'synth') return false
+    if (!Array.isArray(track.steps)) return false
+    return track.steps.every(step => {
+      if (!step || typeof step !== 'object') return false
+      return typeof step.active === 'boolean'
+    })
+  })
+}
+
+// Check if localStorage is available
+function isLocalStorageAvailable(): boolean {
+  try {
+    const test = '__localStorage_test__'
+    localStorage.setItem(test, test)
+    localStorage.removeItem(test)
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Load pattern from localStorage
+function loadPatternFromStorage(defaultPattern: SequencerPattern): SequencerPattern {
+  if (!isLocalStorageAvailable()) {
+    return defaultPattern
+  }
+
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (!stored) return defaultPattern
+
+    const parsed = JSON.parse(stored)
+    if (isValidPattern(parsed)) {
+      return parsed
+    }
+
+    console.warn('Invalid pattern in localStorage, using default')
+    return defaultPattern
+  } catch (error) {
+    console.error('Failed to load pattern from localStorage:', error)
+    return defaultPattern
+  }
+}
+
+// Save pattern to localStorage
+function savePattern(pattern: SequencerPattern): void {
+  if (!isLocalStorageAvailable()) {
+    return
+  }
+
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(pattern))
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      console.error('localStorage quota exceeded, cannot save pattern')
+    } else {
+      console.error('Failed to save pattern to localStorage:', error)
+    }
+  }
+}
+
 export function SequencerProvider({ children }: { children: ReactNode }) {
-  const { pattern, setPattern } = usePatternStorage(DEFAULT_PATTERN)
+  // Load initial pattern from localStorage
+  const initialPattern = loadPatternFromStorage(DEFAULT_PATTERN)
+  const { pattern, setPattern, undo, redo, canUndo, canRedo } = usePatternHistory(initialPattern)
   const [showSequencer, setShowSequencer] = useState(false)
   const [selectedStep, setSelectedStep] = useState<number | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [clipboard, setClipboard] = useState<StepClipboard | null>(null)
+  const saveTimeoutRef = useRef<number | null>(null)
+
+  // Debounced save effect for localStorage persistence
+  useEffect(() => {
+    // Clear any pending save
+    if (saveTimeoutRef.current !== null) {
+      window.clearTimeout(saveTimeoutRef.current)
+    }
+
+    // Schedule new save
+    saveTimeoutRef.current = window.setTimeout(() => {
+      savePattern(pattern)
+      saveTimeoutRef.current = null
+    }, SAVE_DEBOUNCE_MS)
+
+    // Cleanup on unmount
+    return () => {
+      if (saveTimeoutRef.current !== null) {
+        window.clearTimeout(saveTimeoutRef.current)
+        // Save immediately on unmount
+        savePattern(pattern)
+      }
+    }
+  }, [pattern])
 
   const {
     isPlaying,
@@ -95,7 +218,7 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
         }
       }
     })
-  }, [])
+  }, [setPattern])
 
   // Handle step count change - only changes display/playback, data always has MAX_STEPS
   const handleStepCountChange = useCallback((newCount: StepCount) => {
@@ -114,7 +237,7 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
     if (selectedStep !== null && selectedStep >= newCount) {
       setSelectedStep(null)
     }
-  }, [setStepCount, selectedStep])
+  }, [setStepCount, selectedStep, setPattern])
 
   // Clear all tracks
   const clearPattern = useCallback(() => {
@@ -125,7 +248,7 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
         steps: track.steps.map(() => ({ active: false })),
       })),
     }))
-  }, [])
+  }, [setPattern])
 
   // Load a preset pattern
   const loadPattern = useCallback((patternId: string) => {
@@ -140,7 +263,75 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
     })
     // Update BPM to match the preset
     setBpm(preset.bpm)
-  }, [pattern.id, setBpm])
+  }, [pattern.id, setBpm, setPattern])
+
+  // Copy step to clipboard
+  const copyStep = useCallback((stepIndex: number) => {
+    const sounds = pattern.tracks
+      .filter(track => track.steps[stepIndex]?.active)
+      .map(track => ({ soundId: track.soundId, soundType: track.soundType }))
+    setClipboard({ sounds })
+  }, [pattern.tracks])
+
+  // Paste clipboard to step
+  const pasteStep = useCallback((stepIndex: number) => {
+    if (!clipboard) return
+
+    setPattern(prev => {
+      // Clear the target step first
+      let newTracks = prev.tracks.map(track => ({
+        ...track,
+        steps: track.steps.map((step, idx) => {
+          if (idx !== stepIndex) return step
+          return { ...step, active: false }
+        }),
+      }))
+
+      // Add sounds from clipboard
+      clipboard.sounds.forEach(({ soundId, soundType }) => {
+        const trackIndex = newTracks.findIndex(t => t.soundId === soundId)
+
+        if (trackIndex >= 0) {
+          // Track exists, activate the step
+          newTracks[trackIndex].steps[stepIndex] = { active: true }
+        } else {
+          // Track doesn't exist, create it
+          const newTrack = {
+            soundId,
+            soundType,
+            steps: Array(MAX_STEPS).fill(null).map((_, sIdx) => ({
+              active: sIdx === stepIndex
+            })),
+          }
+          newTracks = [...newTracks, newTrack]
+        }
+      })
+
+      return {
+        ...prev,
+        tracks: newTracks,
+      }
+    })
+  }, [clipboard, setPattern])
+
+  // Set volume for a specific track
+  const setTrackVolume = useCallback((soundId: string, volume: number) => {
+    setPattern(prev => {
+      const trackIndex = prev.tracks.findIndex(t => t.soundId === soundId)
+      if (trackIndex < 0) return prev
+
+      return {
+        ...prev,
+        tracks: prev.tracks.map((track, idx) => {
+          if (idx !== trackIndex) return track
+          return {
+            ...track,
+            volume: Math.max(0, Math.min(1, volume)),
+          }
+        }),
+      }
+    })
+  }, [setPattern])
 
   return (
     <SequencerContext.Provider
@@ -156,6 +347,7 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
         setBpm,
         setStepCount,
         toggleTrackVisibility,
+        setTrackVolume,
         showSequencer,
         setShowSequencer,
         selectedStep,
@@ -167,6 +359,13 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
         handleStepSelect,
         handleStepCountChange,
         loadPattern,
+        clipboard,
+        copyStep,
+        pasteStep,
+        undo,
+        redo,
+        canUndo,
+        canRedo,
       }}
     >
       {children}

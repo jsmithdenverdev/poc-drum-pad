@@ -3,11 +3,13 @@ import { SYNTH_NOTES } from '@/audio/synth-engine'
 import { cn } from '@/lib/utils'
 
 interface PianoKeyboardProps {
-  onTrigger: (noteId: string) => void
+  onTrigger?: (noteId: string) => void
+  onNoteOn?: (noteId: string) => void
+  onNoteOff?: (noteId: string) => void
   className?: string
 }
 
-export function PianoKeyboard({ onTrigger, className }: PianoKeyboardProps) {
+export function PianoKeyboard({ onTrigger, onNoteOn, onNoteOff, className }: PianoKeyboardProps) {
   // Separate white and black keys for rendering
   const whiteKeys = SYNTH_NOTES.filter(note => !note.isBlackKey)
   const blackKeys = SYNTH_NOTES.filter(note => note.isBlackKey)
@@ -39,6 +41,8 @@ export function PianoKeyboard({ onTrigger, className }: PianoKeyboardProps) {
             note={note.note}
             isBlackKey={false}
             onTrigger={onTrigger}
+            onNoteOn={onNoteOn}
+            onNoteOff={onNoteOff}
           />
         ))}
       </div>
@@ -64,6 +68,8 @@ export function PianoKeyboard({ onTrigger, className }: PianoKeyboardProps) {
                 note={note.note}
                 isBlackKey={true}
                 onTrigger={onTrigger}
+                onNoteOn={onNoteOn}
+                onNoteOff={onNoteOff}
                 className="h-full w-8"
               />
             </div>

@@ -42,6 +42,14 @@ export function useAudioEngine(sounds: DrumSound[]) {
     await audioEngine.playSynth(noteId)
   }, [])
 
+  const noteOn = useCallback(async (noteId: string) => {
+    await audioEngine.noteOn(noteId)
+  }, [])
+
+  const noteOff = useCallback((noteId: string) => {
+    audioEngine.noteOff(noteId)
+  }, [])
+
   const resume = useCallback(async () => {
     return await audioEngine.resume()
   }, [])
@@ -62,6 +70,8 @@ export function useAudioEngine(sounds: DrumSound[]) {
     init,
     play,
     playSynth,
+    noteOn,
+    noteOff,
     resume,
     setVolume,
     playTestTone,

@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { cn } from '@/lib/utils'
+import { triggerHaptic } from '@/lib/haptics'
 
 interface StepButtonProps {
   stepIndex: number
@@ -21,10 +22,15 @@ export const StepButton = React.memo(function StepButton({
   const isBeatStart = stepIndex % 4 === 0
   const hasActiveSounds = activeSoundColors.length > 0
 
+  const handleClick = useCallback(() => {
+    triggerHaptic('light')
+    onSelect()
+  }, [onSelect])
+
   return (
     <button
       type="button"
-      onClick={onSelect}
+      onClick={handleClick}
       className={cn(
         'relative flex items-center justify-center',
         'w-full aspect-square rounded-lg transition-all duration-75',

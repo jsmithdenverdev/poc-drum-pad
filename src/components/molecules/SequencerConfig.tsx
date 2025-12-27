@@ -4,7 +4,7 @@ import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 import { STEP_COUNT_OPTIONS } from '@/types/audio.types'
 import type { StepCount, SoundDisplay } from '@/types/audio.types'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Volume2 } from 'lucide-react'
 import { TapTempoButton } from '@/components/atoms/TapTempoButton'
 import { useTapTempo } from '@/hooks/use-tap-tempo'
 
@@ -13,13 +13,15 @@ interface SequencerConfigProps {
   stepCount: StepCount
   tracks: SoundDisplay[]
   hiddenTracks: Set<string>
+  trackVolumes: Map<string, number>
   onBpmChange: (bpm: number) => void
   onStepCountChange: (count: StepCount) => void
   onToggleTrackVisibility: (soundId: string) => void
+  onTrackVolumeChange: (soundId: string, volume: number) => void
   className?: string
 }
 
-// Custom comparison function to handle Set and array props
+// Custom comparison function to handle Set, Map, and array props
 function arePropsEqual(prevProps: SequencerConfigProps, nextProps: SequencerConfigProps): boolean {
   // Check primitive props
   if (
@@ -40,6 +42,16 @@ function arePropsEqual(prevProps: SequencerConfigProps, nextProps: SequencerConf
     }
   }
 
+  // Check Map equality
+  if (prevProps.trackVolumes.size !== nextProps.trackVolumes.size) {
+    return false
+  }
+  for (const [key, value] of prevProps.trackVolumes) {
+    if (nextProps.trackVolumes.get(key) !== value) {
+      return false
+    }
+  }
+
   // Check tracks array (shallow comparison by reference is usually enough for this case)
   if (prevProps.tracks !== nextProps.tracks) {
     return false
@@ -54,12 +66,17 @@ export const SequencerConfig = React.memo(function SequencerConfig({
   stepCount,
   tracks,
   hiddenTracks,
+  trackVolumes,
   onBpmChange,
   onStepCountChange,
   onToggleTrackVisibility,
+  onTrackVolumeChange,
   className,
 }: SequencerConfigProps) {
   const { tap } = useTapTempo(onBpmChange)
+
+  // Get visible tracks for volume controls
+  const visibleTracks = tracks.filter(track => !hiddenTracks.has(track.id))
 
   return (
     <div className={cn('space-y-4', className)}>
@@ -133,6 +150,40 @@ export const SequencerConfig = React.memo(function SequencerConfig({
           })}
         </div>
       </div>
+
+      {/* Track Volume Controls */}
+      {visibleTracks.length > 0 && (
+        <div className="space-y-2">
+          <span className="text-sm text-muted-foreground">Volume</span>
+          {visibleTracks.map(track => {
+            const volume = trackVolumes.get(track.id) ?? 1
+            return (
+              <div key={track.id} className="flex items-center gap-3">
+                <Volume2 className="w-3 h-3" style={{ color: track.color }} aria-hidden="true" />
+                <span
+                  className="text-xs w-16 truncate"
+                  style={{ color: track.color }}
+                  title={track.name}
+                >
+                  {track.name}
+                </span>
+                <Slider
+                  value={[volume * 100]}
+                  min={0}
+                  max={100}
+                  step={1}
+                  onValueChange={([v]) => onTrackVolumeChange(track.id, v / 100)}
+                  className="flex-1"
+                  aria-label={`${track.name} volume`}
+                />
+                <span className="text-xs font-mono w-8" aria-live="polite">
+                  {Math.round(volume * 100)}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }, arePropsEqual)
