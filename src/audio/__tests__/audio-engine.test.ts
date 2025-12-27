@@ -228,7 +228,7 @@ describe('AudioEngine', () => {
 
       audioEngine.schedulePlay('synth-C4', 1.0, true)
 
-      expect(scheduleNoteSpy).toHaveBeenCalledWith('synth-C4', 1.0)
+      expect(scheduleNoteSpy).toHaveBeenCalledWith('synth-C4', 1.0, 1)
     })
 
     it('should not schedule when context is suspended', async () => {
