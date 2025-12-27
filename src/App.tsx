@@ -1,10 +1,11 @@
 import { useState, useCallback, useRef } from 'react'
 import { DebugDrawer } from '@/components/organisms/DebugDrawer'
+import { AudioErrorBoundary } from '@/components/organisms/AudioErrorBoundary'
 import { LandscapeLayout } from '@/components/templates/LandscapeLayout'
 import { DrumPadPage } from '@/components/pages/DrumPadPage'
 import { SynthPage } from '@/components/pages/SynthPage'
 import { Button } from '@/components/ui/button'
-import { Volume2 } from 'lucide-react'
+import { Volume2, AlertTriangle, RefreshCw } from 'lucide-react'
 import { AudioProvider, SequencerProvider, useAudio } from '@/contexts'
 import { SWIPE_THRESHOLD } from '@/constants'
 import { cn } from '@/lib/utils'
@@ -12,7 +13,7 @@ import { cn } from '@/lib/utils'
 // Main app content (needs to be inside providers)
 function AppContent() {
   const [currentPage, setCurrentPage] = useState(0) // 0 = drums, 1 = synth
-  const { init, needsInit, isLoading } = useAudio()
+  const { init, needsInit, isLoading, hasError, error } = useAudio()
 
   // Swipe tracking
   const touchStartX = useRef<number | null>(null)
@@ -68,6 +69,56 @@ function AppContent() {
       <LandscapeLayout>
         <div className="flex items-center justify-center">
           <p className="text-muted-foreground">Loading sounds...</p>
+        </div>
+      </LandscapeLayout>
+    )
+  }
+
+  // Show error UI if audio initialization failed
+  if (hasError) {
+    return (
+      <LandscapeLayout>
+        <div className="flex flex-col items-center justify-center gap-6 p-8 text-center max-w-md mx-auto">
+          <div className="flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10">
+            <AlertTriangle className="w-8 h-8 text-red-500" />
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold text-foreground">Audio Error</h1>
+            <p className="text-muted-foreground">
+              Unable to initialize audio. This may happen if audio permissions are denied or the device doesn't support Web Audio.
+            </p>
+          </div>
+
+          {error && (
+            <details className="w-full text-left">
+              <summary className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                Technical details
+              </summary>
+              <pre className="mt-2 p-3 bg-secondary rounded-md text-xs text-foreground overflow-auto max-h-32">
+                {error.message}
+              </pre>
+            </details>
+          )}
+
+          <div className="flex gap-3 w-full sm:w-auto">
+            <Button
+              onClick={handleInit}
+              variant="default"
+              className="gap-2 flex-1 sm:flex-initial"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Try Again
+            </Button>
+            <Button
+              onClick={() => window.location.reload()}
+              variant="outline"
+              className="gap-2 flex-1 sm:flex-initial"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh Page
+            </Button>
+          </div>
         </div>
       </LandscapeLayout>
     )
@@ -141,4 +192,13 @@ function App() {
   )
 }
 
-export default App
+// Wrap with error boundary for graceful error handling
+function AppWithErrorBoundary() {
+  return (
+    <AudioErrorBoundary>
+      <App />
+    </AudioErrorBoundary>
+  )
+}
+
+export default AppWithErrorBoundary

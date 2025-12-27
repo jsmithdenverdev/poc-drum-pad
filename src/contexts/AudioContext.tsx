@@ -26,7 +26,7 @@ interface AudioContextValue {
 const AudioContext = createContext<AudioContextValue | undefined>(undefined)
 
 export function AudioProvider({ children }: { children: ReactNode }) {
-  const { init, play, playSynth, needsInit, isLoading } = useAudioEngine(DRUM_SOUNDS)
+  const { init, play, playSynth, needsInit, isLoading, hasError, error } = useAudioEngine(DRUM_SOUNDS)
   const [synthSettings, setSynthSettings] = useState<SynthSettings>(DEFAULT_SYNTH_SETTINGS)
 
   const handleWaveformChange = useCallback((waveform: WaveformType) => {
@@ -67,6 +67,8 @@ export function AudioProvider({ children }: { children: ReactNode }) {
         playSynth,
         needsInit,
         isLoading,
+        hasError,
+        error,
         synthSettings,
         handleWaveformChange,
         handleOctaveChange,
