@@ -10,6 +10,13 @@ import { SynthConfig } from '@/components/molecules/SynthConfig'
 import { PatternSelector } from '@/components/molecules/PatternSelector'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet'
 import { PlayButton } from '@/components/atoms/PlayButton'
 import { Volume2, AlertTriangle, RefreshCw, Settings, Trash2 } from 'lucide-react'
 import { AudioProvider, SequencerProvider, useAudio, useSequencerContext } from '@/contexts'
@@ -257,22 +264,21 @@ function AppContent() {
                 />
               </div>
 
-              {/* Play button - only when sequencer is on */}
-              {showSequencer && (
+              {/* Play button - always rendered but hidden when sequencer is off */}
+              <div className={cn(!showSequencer && 'invisible')}>
                 <PlayButton isPlaying={isPlaying} onToggle={toggle} />
-              )}
+              </div>
 
-              {/* Clear button */}
-              {showSequencer && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={clearPattern}
-                  title="Clear pattern"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </Button>
-              )}
+              {/* Clear button - always rendered but hidden when sequencer is off */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={clearPattern}
+                title="Clear pattern"
+                className={cn(!showSequencer && 'invisible')}
+              >
+                <Trash2 className="w-5 h-5" />
+              </Button>
 
               {/* Settings button */}
               <Button
@@ -287,10 +293,17 @@ function AppContent() {
           </div>
         </header>
 
-        {/* Settings panel - static, collapsible */}
-        {showSettings && (
-          <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-secondary/30 space-y-4">
-            <div className="max-w-lg mx-auto space-y-4">
+        {/* Settings drawer */}
+        <Sheet open={showSettings} onOpenChange={setShowSettings}>
+          <SheetContent side="right" className="overflow-y-auto">
+            <SheetHeader className="mb-6">
+              <SheetTitle>Settings</SheetTitle>
+              <SheetDescription>
+                Configure sequencer and instrument settings
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="space-y-6">
               {/* Pattern Selector - only when sequencer is on */}
               {showSequencer && (
                 <div className="space-y-2">
@@ -330,8 +343,8 @@ function AppContent() {
                 />
               )}
             </div>
-          </div>
-        )}
+          </SheetContent>
+        </Sheet>
 
         {/* Sequencer - static above instruments */}
         {showSequencer && (

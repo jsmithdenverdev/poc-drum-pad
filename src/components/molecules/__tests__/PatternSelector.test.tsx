@@ -199,6 +199,6 @@ describe('PatternSelector', () => {
       btn.textContent?.includes('Pattern 2') && btn.textContent?.includes('140 BPM')
     )
 
-    expect(pattern2Button).toHaveClass('bg-accent/50')
+    expect(pattern2Button).toHaveClass('bg-secondary')
   })
 })

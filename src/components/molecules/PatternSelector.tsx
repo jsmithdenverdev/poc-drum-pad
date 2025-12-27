@@ -57,15 +57,15 @@ export function PatternSelector({
 
       {/* Dropdown menu */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-50 overflow-hidden">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-popover text-popover-foreground border border-border rounded-md shadow-lg z-50 overflow-hidden max-h-64 overflow-y-auto">
           <div className="py-1">
             {patterns.map((pattern) => (
               <button
                 key={pattern.id}
                 onClick={() => handleSelect(pattern.id)}
                 className={cn(
-                  'w-full px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors flex items-center justify-between',
-                  pattern.id === currentPatternId && 'bg-accent/50'
+                  'w-full px-3 py-2 text-sm text-left hover:bg-secondary transition-colors flex items-center justify-between',
+                  pattern.id === currentPatternId && 'bg-secondary'
                 )}
               >
                 <div className="flex flex-col">
