@@ -1,3 +1,4 @@
+import React from 'react'
 import { cn } from '@/lib/utils'
 
 interface StepButtonProps {
@@ -9,7 +10,7 @@ interface StepButtonProps {
   className?: string
 }
 
-export function StepButton({
+export const StepButton = React.memo(function StepButton({
   stepIndex,
   isSelected,
   isCurrentStep,
@@ -69,4 +70,4 @@ export function StepButton({
       )}
     </button>
   )
-}
+})
