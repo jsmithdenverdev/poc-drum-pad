@@ -322,22 +322,20 @@ function App() {
           </div>
         </header>
 
-        {/* Settings panel - collapsible, shows all relevant settings */}
+        {/* Settings panel - collapsible */}
         {showSettings && (
           <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-secondary/30 space-y-4">
             <div className="max-w-lg mx-auto space-y-4">
-              {/* Sequencer settings - when sequencer is enabled */}
-              {showSequencer && (
-                <SequencerConfig
-                  bpm={bpm}
-                  stepCount={stepCount}
-                  tracks={DRUM_SOUNDS}
-                  hiddenTracks={hiddenTracks}
-                  onBpmChange={setBpm}
-                  onStepCountChange={handleStepCountChange}
-                  onToggleTrackVisibility={toggleTrackVisibility}
-                />
-              )}
+              {/* Sequencer settings - always visible */}
+              <SequencerConfig
+                bpm={bpm}
+                stepCount={stepCount}
+                tracks={DRUM_SOUNDS}
+                hiddenTracks={hiddenTracks}
+                onBpmChange={setBpm}
+                onStepCountChange={handleStepCountChange}
+                onToggleTrackVisibility={toggleTrackVisibility}
+              />
 
               {/* Synth settings - when on synth page */}
               {currentPage === 1 && (
@@ -350,13 +348,6 @@ function App() {
                   onReleaseChange={handleReleaseChange}
                   onFilterChange={handleFilterChange}
                 />
-              )}
-
-              {/* No settings available message */}
-              {currentPage === 0 && !showSequencer && (
-                <p className="text-center text-sm text-muted-foreground">
-                  Enable the sequencer to configure settings
-                </p>
               )}
             </div>
           </div>
