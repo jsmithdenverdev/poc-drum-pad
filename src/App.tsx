@@ -5,6 +5,7 @@ import { DrumPadGrid } from '@/components/organisms/DrumPadGrid'
 import { PianoKeyboard } from '@/components/organisms/PianoKeyboard'
 import { LandscapeLayout } from '@/components/templates/LandscapeLayout'
 import { SequencerConfig } from '@/components/molecules/SequencerConfig'
+import { SynthConfig } from '@/components/molecules/SynthConfig'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { PlayButton } from '@/components/atoms/PlayButton'
@@ -12,7 +13,8 @@ import { Volume2, Settings, Trash2 } from 'lucide-react'
 import { useAudioEngine } from '@/hooks/use-audio-engine'
 import { useSequencer } from '@/hooks/use-sequencer'
 import { soundUrls } from '@/audio/sounds'
-import { SYNTH_NOTES } from '@/audio/synth-engine'
+import { SYNTH_NOTES, synthEngine, DEFAULT_SYNTH_SETTINGS } from '@/audio/synth-engine'
+import type { SynthSettings, WaveformType } from '@/audio/synth-engine'
 import { cn } from '@/lib/utils'
 import type { DrumSound, SequencerPattern, SoundType, StepCount } from '@/types/audio.types'
 
@@ -63,6 +65,7 @@ function App() {
   const [showSequencer, setShowSequencer] = useState(false)
   const [selectedStep, setSelectedStep] = useState<number | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [synthSettings, setSynthSettings] = useState<SynthSettings>(DEFAULT_SYNTH_SETTINGS)
 
   // Swipe tracking
   const touchStartX = useRef<number | null>(null)
@@ -176,6 +179,37 @@ function App() {
     }))
   }, [])
 
+  // Synth settings handlers
+  const handleWaveformChange = useCallback((waveform: WaveformType) => {
+    synthEngine.setWaveform(waveform)
+    setSynthSettings(prev => ({ ...prev, waveform }))
+  }, [])
+
+  const handleOctaveChange = useCallback((octave: number) => {
+    synthEngine.setOctave(octave)
+    setSynthSettings(prev => ({ ...prev, octave }))
+  }, [])
+
+  const handleDetuneChange = useCallback((detune: number) => {
+    synthEngine.setDetune(detune)
+    setSynthSettings(prev => ({ ...prev, detune }))
+  }, [])
+
+  const handleAttackChange = useCallback((attack: number) => {
+    synthEngine.setAttack(attack)
+    setSynthSettings(prev => ({ ...prev, attack }))
+  }, [])
+
+  const handleReleaseChange = useCallback((release: number) => {
+    synthEngine.setRelease(release)
+    setSynthSettings(prev => ({ ...prev, release }))
+  }, [])
+
+  const handleFilterChange = useCallback((filterCutoff: number) => {
+    synthEngine.setFilterCutoff(filterCutoff)
+    setSynthSettings(prev => ({ ...prev, filterCutoff }))
+  }, [])
+
   // Handle drum pad trigger
   const handleDrumTrigger = useCallback((soundId: string) => {
     play(soundId)
@@ -275,34 +309,47 @@ function App() {
                 </Button>
               )}
 
-              {/* Settings button */}
-              {showSequencer && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowSettings(!showSettings)}
-                  className={cn(showSettings && 'bg-secondary')}
-                >
-                  <Settings className="w-5 h-5" />
-                </Button>
-              )}
+              {/* Settings button - always visible */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSettings(!showSettings)}
+                className={cn(showSettings && 'bg-secondary')}
+              >
+                <Settings className="w-5 h-5" />
+              </Button>
             </div>
           </div>
         </header>
 
         {/* Settings panel - collapsible */}
-        {showSequencer && showSettings && (
-          <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-secondary/30">
-            <SequencerConfig
-              bpm={bpm}
-              stepCount={stepCount}
-              tracks={DRUM_SOUNDS}
-              hiddenTracks={hiddenTracks}
-              onBpmChange={setBpm}
-              onStepCountChange={handleStepCountChange}
-              onToggleTrackVisibility={toggleTrackVisibility}
-              className="max-w-lg mx-auto"
-            />
+        {showSettings && (
+          <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-secondary/30 space-y-4">
+            <div className="max-w-lg mx-auto space-y-4">
+              {/* Sequencer settings - always visible */}
+              <SequencerConfig
+                bpm={bpm}
+                stepCount={stepCount}
+                tracks={DRUM_SOUNDS}
+                hiddenTracks={hiddenTracks}
+                onBpmChange={setBpm}
+                onStepCountChange={handleStepCountChange}
+                onToggleTrackVisibility={toggleTrackVisibility}
+              />
+
+              {/* Synth settings - when on synth page */}
+              {currentPage === 1 && (
+                <SynthConfig
+                  settings={synthSettings}
+                  onWaveformChange={handleWaveformChange}
+                  onOctaveChange={handleOctaveChange}
+                  onDetuneChange={handleDetuneChange}
+                  onAttackChange={handleAttackChange}
+                  onReleaseChange={handleReleaseChange}
+                  onFilterChange={handleFilterChange}
+                />
+              )}
+            </div>
           </div>
         )}
 
