@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { DRUM_SOUNDS } from '@/constants'
 
 interface UseKeyboardShortcutsOptions {
-  onTrigger: (soundId: string) => void
+  onTrigger?: (soundId: string) => void
   onUndo?: () => void
   onRedo?: () => void
   onCopy?: () => void
@@ -61,7 +61,7 @@ export function useKeyboardShortcuts({ onTrigger, onUndo, onRedo, onCopy, onPast
       const key = e.key.toLowerCase()
       const sound = DRUM_SOUNDS.find(s => s.key === key)
 
-      if (sound) {
+      if (sound && onTrigger) {
         const now = Date.now()
         const lastTrigger = lastTriggerRef.current.get(key) || 0
 
