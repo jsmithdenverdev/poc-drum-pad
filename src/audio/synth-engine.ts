@@ -73,10 +73,29 @@ interface EnvelopeSettings {
   release: number  // seconds
 }
 
+// Full synth settings
+export interface SynthSettings {
+  waveform: WaveformType
+  octave: number      // -2 to +2
+  detune: number      // cents (-100 to +100)
+  attack: number      // seconds
+  release: number     // seconds
+  filterCutoff: number // Hz (200 to 8000)
+}
+
+export const DEFAULT_SYNTH_SETTINGS: SynthSettings = {
+  waveform: 'sawtooth',
+  octave: 0,
+  detune: 0,
+  attack: 0.01,
+  release: 0.3,
+  filterCutoff: 8000,
+}
+
 class SynthEngine {
   private context: AudioContext | null = null
   private gainNode: GainNode | null = null
-  private waveform: WaveformType = 'sawtooth'
+  private settings: SynthSettings = { ...DEFAULT_SYNTH_SETTINGS }
   private envelope: EnvelopeSettings = {
     attack: 0.01,
     decay: 0.1,
@@ -90,11 +109,57 @@ class SynthEngine {
   }
 
   setWaveform(waveform: WaveformType): void {
-    this.waveform = waveform
+    this.settings.waveform = waveform
   }
 
   getWaveform(): WaveformType {
-    return this.waveform
+    return this.settings.waveform
+  }
+
+  setOctave(octave: number): void {
+    this.settings.octave = Math.max(-2, Math.min(2, octave))
+  }
+
+  getOctave(): number {
+    return this.settings.octave
+  }
+
+  setDetune(cents: number): void {
+    this.settings.detune = Math.max(-100, Math.min(100, cents))
+  }
+
+  getDetune(): number {
+    return this.settings.detune
+  }
+
+  setAttack(seconds: number): void {
+    this.settings.attack = Math.max(0.01, Math.min(1, seconds))
+    this.envelope.attack = this.settings.attack
+  }
+
+  getAttack(): number {
+    return this.settings.attack
+  }
+
+  setRelease(seconds: number): void {
+    this.settings.release = Math.max(0.05, Math.min(2, seconds))
+    this.envelope.release = this.settings.release
+  }
+
+  getRelease(): number {
+    return this.settings.release
+  }
+
+  setFilterCutoff(hz: number): void {
+    this.settings.filterCutoff = Math.max(200, Math.min(8000, hz))
+  }
+
+  getFilterCutoff(): number {
+    return this.settings.filterCutoff
+  }
+
+  getSettings(): SynthSettings {
+    return { ...this.settings }
   }
 
   setEnvelope(settings: Partial<EnvelopeSettings>): void {
@@ -111,7 +176,9 @@ class SynthEngine {
       return
     }
 
-    this.playFrequency(note.frequency, this.context.currentTime)
+    // Apply octave shift
+    const frequency = note.frequency * Math.pow(2, this.settings.octave)
+    this.playFrequency(frequency, this.context.currentTime)
   }
 
   // Schedule a note to play at a specific time (for sequencer)
@@ -121,7 +188,9 @@ class SynthEngine {
     const note = SYNTH_NOTES.find(n => n.id === noteId)
     if (!note) return
 
-    this.playFrequency(note.frequency, time)
+    // Apply octave shift
+    const frequency = note.frequency * Math.pow(2, this.settings.octave)
+    this.playFrequency(frequency, time)
   }
 
   private playFrequency(frequency: number, startTime: number): void {
@@ -131,8 +200,15 @@ class SynthEngine {
 
     // Create oscillator
     const oscillator = this.context.createOscillator()
-    oscillator.type = this.waveform
+    oscillator.type = this.settings.waveform
     oscillator.frequency.value = frequency
+    oscillator.detune.value = this.settings.detune
+
+    // Create low-pass filter
+    const filter = this.context.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.value = this.settings.filterCutoff
+    filter.Q.value = 1
 
     // Create envelope gain node
     const envelopeGain = this.context.createGain()
@@ -149,8 +225,9 @@ class SynthEngine {
     envelopeGain.gain.setValueAtTime(sustain * 0.5, releaseStart)
     envelopeGain.gain.linearRampToValueAtTime(0, releaseStart + release)
 
-    // Connect: oscillator -> envelope -> main gain -> destination
-    oscillator.connect(envelopeGain)
+    // Connect: oscillator -> filter -> envelope -> main gain -> destination
+    oscillator.connect(filter)
+    filter.connect(envelopeGain)
     envelopeGain.connect(this.gainNode)
 
     // Start and stop
