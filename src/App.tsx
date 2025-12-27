@@ -333,6 +333,22 @@ function AppContent() {
           </div>
         )}
 
+        {/* Sequencer - static above instruments */}
+        {showSequencer && (
+          <div className="flex-shrink-0 py-3 border-b border-border">
+            <StepSequencer
+              pattern={pattern}
+              sounds={ALL_SOUNDS_FOR_DISPLAY}
+              selectedStep={selectedStep}
+              currentStep={currentStep}
+              isPlaying={isPlaying}
+              stepCount={stepCount}
+              hiddenTracks={hiddenTracks}
+              onStepSelect={handleStepSelect}
+            />
+          </div>
+        )}
+
         {/* Swipeable instrument area */}
         <div
           className="flex-1 overflow-hidden relative min-h-0"
@@ -376,22 +392,6 @@ function AppContent() {
             ))}
           </div>
         </div>
-
-        {/* Sequencer - static at bottom */}
-        {showSequencer && (
-          <div className="flex-shrink-0 py-3 border-t border-border">
-            <StepSequencer
-              pattern={pattern}
-              sounds={ALL_SOUNDS_FOR_DISPLAY}
-              selectedStep={selectedStep}
-              currentStep={currentStep}
-              isPlaying={isPlaying}
-              stepCount={stepCount}
-              hiddenTracks={hiddenTracks}
-              onStepSelect={handleStepSelect}
-            />
-          </div>
-        )}
       </div>
 
       <DebugDrawer />
