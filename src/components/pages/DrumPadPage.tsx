@@ -9,6 +9,7 @@ import { Settings, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAudio, useSequencerContext } from '@/contexts'
 import { DRUM_SOUNDS, ALL_SOUNDS_FOR_DISPLAY } from '@/constants'
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 
 interface DrumPadPageProps {
   onNavigate?: (page: number) => void
@@ -46,6 +47,12 @@ export function DrumPadPage({ onNavigate: _onNavigate }: DrumPadPageProps) {
       toggleSoundOnStep(soundId, selectedStep, 'drum')
     }
   }, [play, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
+
+  // Enable keyboard shortcuts for drum pads
+  useKeyboardShortcuts({
+    onTrigger: handleTrigger,
+    enabled: true,
+  })
 
   return (
     <div className="h-full w-full flex flex-col">
