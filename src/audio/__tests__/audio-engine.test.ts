@@ -137,7 +137,7 @@ describe('AudioEngine', () => {
       const context = audioContextManager.getContext()!
       const resumeSpy = vi.spyOn(context, 'resume')
 
-      // @ts-ignore - Set state to suspended
+      // @ts-expect-error - Set state to suspended
       context.state = 'suspended'
 
       await audioEngine.play('kick')
@@ -194,7 +194,7 @@ describe('AudioEngine', () => {
       const context = audioContextManager.getContext()!
       const resumeSpy = vi.spyOn(context, 'resume')
 
-      // @ts-ignore - Set state to suspended
+      // @ts-expect-error - Set state to suspended
       context.state = 'suspended'
 
       await audioEngine.playSynth('synth-C4')
@@ -236,7 +236,7 @@ describe('AudioEngine', () => {
       const context = audioContextManager.getContext()!
       const createBufferSourceSpy = vi.spyOn(context, 'createBufferSource')
 
-      // @ts-ignore - Set state to suspended
+      // @ts-expect-error - Set state to suspended
       context.state = 'suspended'
 
       audioEngine.schedulePlay('kick', 1.0, false)
@@ -309,7 +309,7 @@ describe('AudioEngine', () => {
       expect(audioEngine.isSuspended).toBe(false)
 
       const context = audioContextManager.getContext()!
-      // @ts-ignore
+      // @ts-expect-error - Set state for testing
       context.state = 'suspended'
       expect(audioEngine.isSuspended).toBe(true)
     })

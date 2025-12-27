@@ -40,7 +40,7 @@ describe('AudioContextManager', () => {
 
     it('should resume a suspended context', async () => {
       const context = audioContextManager.createContext()
-      // @ts-ignore - Manually set state to suspended for testing
+      // @ts-expect-error - Manually set state to suspended for testing
       context.state = 'suspended'
 
       const result = await audioContextManager.ensureRunning()
@@ -51,7 +51,7 @@ describe('AudioContextManager', () => {
     it('should deduplicate concurrent resume calls', async () => {
       const context = audioContextManager.createContext()
       const resumeSpy = vi.spyOn(context, 'resume')
-      // @ts-ignore - Manually set state to suspended for testing
+      // @ts-expect-error - Manually set state to suspended for testing
       context.state = 'suspended'
 
       // Make multiple concurrent calls
@@ -70,7 +70,7 @@ describe('AudioContextManager', () => {
 
     it('should return false when context is closed', async () => {
       const context = audioContextManager.createContext()
-      // @ts-ignore - Manually set state to closed for testing
+      // @ts-expect-error - Manually set state to closed for testing
       context.state = 'closed'
 
       const result = await audioContextManager.ensureRunning()
@@ -83,7 +83,7 @@ describe('AudioContextManager', () => {
       const context = audioContextManager.createContext()
       expect(audioContextManager.isSuspended).toBe(false)
 
-      // @ts-ignore - Manually set state for testing
+      // @ts-expect-error - Manually set state for testing
       context.state = 'suspended'
       expect(audioContextManager.isSuspended).toBe(true)
     })

@@ -95,7 +95,7 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
         }
       }
     })
-  }, [])
+  }, [setPattern])
 
   // Handle step count change - only changes display/playback, data always has MAX_STEPS
   const handleStepCountChange = useCallback((newCount: StepCount) => {
@@ -114,7 +114,7 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
     if (selectedStep !== null && selectedStep >= newCount) {
       setSelectedStep(null)
     }
-  }, [setStepCount, selectedStep])
+  }, [setStepCount, selectedStep, setPattern])
 
   // Clear all tracks
   const clearPattern = useCallback(() => {
@@ -125,7 +125,7 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
         steps: track.steps.map(() => ({ active: false })),
       })),
     }))
-  }, [])
+  }, [setPattern])
 
   // Load a preset pattern
   const loadPattern = useCallback((patternId: string) => {
@@ -140,7 +140,7 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
     })
     // Update BPM to match the preset
     setBpm(preset.bpm)
-  }, [pattern.id, setBpm])
+  }, [pattern.id, setBpm, setPattern])
 
   return (
     <SequencerContext.Provider
