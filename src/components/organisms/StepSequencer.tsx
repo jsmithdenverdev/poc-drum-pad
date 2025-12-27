@@ -1,5 +1,5 @@
 import { StepButton } from '@/components/atoms/StepButton'
-import type { DrumSound, SequencerPattern } from '@/types/audio.types'
+import type { DrumSound, SequencerPattern, StepCount } from '@/types/audio.types'
 import { cn } from '@/lib/utils'
 
 interface StepSequencerProps {
@@ -8,6 +8,7 @@ interface StepSequencerProps {
   selectedStep: number | null
   currentStep: number
   isPlaying: boolean
+  stepCount: StepCount
   onStepSelect: (stepIndex: number) => void
   className?: string
 }
@@ -18,6 +19,7 @@ export function StepSequencer({
   selectedStep,
   currentStep,
   isPlaying,
+  stepCount,
   onStepSelect,
   className,
 }: StepSequencerProps) {
@@ -36,12 +38,22 @@ export function StepSequencer({
     return colors
   }
 
-  const steps = Array.from({ length: 16 }, (_, i) => i)
+  const steps = Array.from({ length: stepCount }, (_, i) => i)
+
+  // Determine grid columns based on step count
+  const gridColsClass = {
+    4: 'grid-cols-4',
+    8: 'grid-cols-4',
+    16: 'grid-cols-4',
+    32: 'grid-cols-8',
+  }[stepCount]
+
+  // Adjust max-width based on step count
+  const maxWidthClass = stepCount === 32 ? 'max-w-lg' : 'max-w-xs'
 
   return (
-    <div className={cn('w-full max-w-xs mx-auto px-2', className)}>
-      {/* Four rows of 4 steps each */}
-      <div className="grid grid-cols-4 gap-2">
+    <div className={cn('w-full mx-auto px-2', maxWidthClass, className)}>
+      <div className={cn('grid gap-2', gridColsClass)}>
         {steps.map(stepIndex => (
           <StepButton
             key={stepIndex}

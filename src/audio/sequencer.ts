@@ -1,5 +1,5 @@
 import { audioEngine } from './audio-engine'
-import type { SequencerPattern } from '@/types/audio.types'
+import type { SequencerPattern, StepCount } from '@/types/audio.types'
 
 type SequencerCallback = (step: number) => void
 
@@ -11,6 +11,7 @@ class Sequencer {
   private schedulerTimer: number | null = null
   private stepCallbacks: Set<SequencerCallback> = new Set()
   private stopCallbacks: Set<() => void> = new Set()
+  private stepCount: StepCount = 16
 
   // How far ahead to schedule audio (seconds)
   private readonly scheduleAhead = 0.1
@@ -135,7 +136,19 @@ class Sequencer {
     const secondsPerStep = secondsPerBeat / stepsPerBeat
 
     this.nextStepTime += secondsPerStep
-    this.currentStep = (this.currentStep + 1) % 16 // 16 steps per pattern
+    this.currentStep = (this.currentStep + 1) % this.stepCount
+  }
+
+  setStepCount(count: StepCount): void {
+    this.stepCount = count
+    // Reset current step if it's beyond the new count
+    if (this.currentStep >= count) {
+      this.currentStep = 0
+    }
+  }
+
+  getStepCount(): StepCount {
+    return this.stepCount
   }
 
   setBpm(bpm: number): void {
