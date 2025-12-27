@@ -5,6 +5,10 @@ import { DEFAULT_PATTERN, MAX_STEPS } from '@/constants'
 import { PRESET_PATTERNS } from '@/constants/preset-patterns'
 import type { SequencerPattern, SoundType, StepCount } from '@/types/audio.types'
 
+interface StepClipboard {
+  sounds: Array<{ soundId: string; soundType: SoundType }>
+}
+
 interface SequencerContextValue {
   // Pattern state
   pattern: SequencerPattern
@@ -20,6 +24,7 @@ interface SequencerContextValue {
   setBpm: (bpm: number) => void
   setStepCount: (count: StepCount) => void
   toggleTrackVisibility: (soundId: string) => void
+  setTrackVolume: (soundId: string, volume: number) => void
 
   // UI state
   showSequencer: boolean
@@ -35,6 +40,11 @@ interface SequencerContextValue {
   handleStepSelect: (stepIndex: number) => void
   handleStepCountChange: (newCount: StepCount) => void
   loadPattern: (patternId: string) => void
+
+  // Copy/Paste
+  clipboard: StepClipboard | null
+  copyStep: (stepIndex: number) => void
+  pasteStep: (stepIndex: number) => void
 
   // Undo/Redo
   undo: () => void
@@ -132,6 +142,7 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
   const [showSequencer, setShowSequencer] = useState(false)
   const [selectedStep, setSelectedStep] = useState<number | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [clipboard, setClipboard] = useState<StepClipboard | null>(null)
   const saveTimeoutRef = useRef<number | null>(null)
 
   // Debounced save effect for localStorage persistence
@@ -254,6 +265,74 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
     setBpm(preset.bpm)
   }, [pattern.id, setBpm, setPattern])
 
+  // Copy step to clipboard
+  const copyStep = useCallback((stepIndex: number) => {
+    const sounds = pattern.tracks
+      .filter(track => track.steps[stepIndex]?.active)
+      .map(track => ({ soundId: track.soundId, soundType: track.soundType }))
+    setClipboard({ sounds })
+  }, [pattern.tracks])
+
+  // Paste clipboard to step
+  const pasteStep = useCallback((stepIndex: number) => {
+    if (!clipboard) return
+
+    setPattern(prev => {
+      // Clear the target step first
+      let newTracks = prev.tracks.map(track => ({
+        ...track,
+        steps: track.steps.map((step, idx) => {
+          if (idx !== stepIndex) return step
+          return { ...step, active: false }
+        }),
+      }))
+
+      // Add sounds from clipboard
+      clipboard.sounds.forEach(({ soundId, soundType }) => {
+        const trackIndex = newTracks.findIndex(t => t.soundId === soundId)
+
+        if (trackIndex >= 0) {
+          // Track exists, activate the step
+          newTracks[trackIndex].steps[stepIndex] = { active: true }
+        } else {
+          // Track doesn't exist, create it
+          const newTrack = {
+            soundId,
+            soundType,
+            steps: Array(MAX_STEPS).fill(null).map((_, sIdx) => ({
+              active: sIdx === stepIndex
+            })),
+          }
+          newTracks = [...newTracks, newTrack]
+        }
+      })
+
+      return {
+        ...prev,
+        tracks: newTracks,
+      }
+    })
+  }, [clipboard, setPattern])
+
+  // Set volume for a specific track
+  const setTrackVolume = useCallback((soundId: string, volume: number) => {
+    setPattern(prev => {
+      const trackIndex = prev.tracks.findIndex(t => t.soundId === soundId)
+      if (trackIndex < 0) return prev
+
+      return {
+        ...prev,
+        tracks: prev.tracks.map((track, idx) => {
+          if (idx !== trackIndex) return track
+          return {
+            ...track,
+            volume: Math.max(0, Math.min(1, volume)),
+          }
+        }),
+      }
+    })
+  }, [setPattern])
+
   return (
     <SequencerContext.Provider
       value={{
@@ -268,6 +347,7 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
         setBpm,
         setStepCount,
         toggleTrackVisibility,
+        setTrackVolume,
         showSequencer,
         setShowSequencer,
         selectedStep,
@@ -279,6 +359,9 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
         handleStepSelect,
         handleStepCountChange,
         loadPattern,
+        clipboard,
+        copyStep,
+        pasteStep,
         undo,
         redo,
         canUndo,

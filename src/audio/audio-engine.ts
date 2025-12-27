@@ -203,7 +203,7 @@ class AudioEngine {
   }
 
   // Schedule a sound to play at a specific time (for sequencer)
-  schedulePlay(soundId: string, time: number, isSynth: boolean = false): void {
+  schedulePlay(soundId: string, time: number, isSynth: boolean = false, volume: number = 1): void {
     const context = audioContextManager.getContext()
     if (!context || !this.gainNode) return
 
@@ -211,7 +211,7 @@ class AudioEngine {
     if (audioContextManager.isSuspended) return
 
     if (isSynth) {
-      synthEngine.scheduleNote(soundId, time)
+      synthEngine.scheduleNote(soundId, time, volume)
       return
     }
 
@@ -220,7 +220,13 @@ class AudioEngine {
 
     const source = context.createBufferSource()
     source.buffer = buffer
-    source.connect(this.gainNode)
+
+    // Apply track volume via gain node
+    const trackGain = context.createGain()
+    trackGain.gain.value = Math.max(0, Math.min(1, volume))
+    source.connect(trackGain)
+    trackGain.connect(this.gainNode)
+
     source.start(time)
   }
 

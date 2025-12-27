@@ -27,6 +27,7 @@ export interface SequencerTrack {
   soundId: string
   soundType: SoundType
   steps: SequencerStep[]
+  volume?: number // 0-1, defaults to 1
 }
 
 export interface SequencerPattern {

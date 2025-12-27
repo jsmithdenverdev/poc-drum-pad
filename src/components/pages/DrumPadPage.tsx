@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { DrumPadGrid } from '@/components/organisms/DrumPadGrid'
 import { StepSequencer } from '@/components/organisms/StepSequencer'
 import { SequencerConfig } from '@/components/molecules/SequencerConfig'
@@ -29,6 +29,7 @@ export function DrumPadPage({ onNavigate: _onNavigate }: DrumPadPageProps) {
     toggle,
     setBpm,
     toggleTrackVisibility,
+    setTrackVolume,
     showSequencer,
     setShowSequencer,
     selectedStep,
@@ -39,9 +40,20 @@ export function DrumPadPage({ onNavigate: _onNavigate }: DrumPadPageProps) {
     handleStepSelect,
     handleStepCountChange,
     loadPattern,
+    copyStep,
+    pasteStep,
     undo,
     redo,
   } = useSequencerContext()
+
+  // Create track volumes Map from pattern
+  const trackVolumes = useMemo(() => {
+    const volumes = new Map<string, number>()
+    pattern.tracks.forEach(track => {
+      volumes.set(track.soundId, track.volume ?? 1)
+    })
+    return volumes
+  }, [pattern.tracks])
 
   const handleTrigger = useCallback((soundId: string) => {
     // Always play the sound
@@ -53,11 +65,25 @@ export function DrumPadPage({ onNavigate: _onNavigate }: DrumPadPageProps) {
     }
   }, [play, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
 
-  // Enable keyboard shortcuts for drum pads and undo/redo
+  const handleCopy = useCallback(() => {
+    if (selectedStep !== null) {
+      copyStep(selectedStep)
+    }
+  }, [selectedStep, copyStep])
+
+  const handlePaste = useCallback(() => {
+    if (selectedStep !== null) {
+      pasteStep(selectedStep)
+    }
+  }, [selectedStep, pasteStep])
+
+  // Enable keyboard shortcuts for drum pads, undo/redo, and copy/paste
   useKeyboardShortcuts({
     onTrigger: handleTrigger,
     onUndo: undo,
     onRedo: redo,
+    onCopy: handleCopy,
+    onPaste: handlePaste,
     enabled: true,
   })
 
@@ -136,9 +162,11 @@ export function DrumPadPage({ onNavigate: _onNavigate }: DrumPadPageProps) {
               stepCount={stepCount}
               tracks={DRUM_SOUNDS}
               hiddenTracks={hiddenTracks}
+              trackVolumes={trackVolumes}
               onBpmChange={setBpm}
               onStepCountChange={handleStepCountChange}
               onToggleTrackVisibility={toggleTrackVisibility}
+              onTrackVolumeChange={setTrackVolume}
             />
           </div>
         </div>

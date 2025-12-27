@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { PianoKeyboard } from '@/components/organisms/PianoKeyboard'
 import { StepSequencer } from '@/components/organisms/StepSequencer'
 import { SequencerConfig } from '@/components/molecules/SequencerConfig'
@@ -38,6 +38,7 @@ export function SynthPage({ onNavigate: _onNavigate }: SynthPageProps) {
     toggle,
     setBpm,
     toggleTrackVisibility,
+    setTrackVolume,
     showSequencer,
     setShowSequencer,
     selectedStep,
@@ -48,6 +49,15 @@ export function SynthPage({ onNavigate: _onNavigate }: SynthPageProps) {
     handleStepSelect,
     handleStepCountChange,
   } = useSequencerContext()
+
+  // Create track volumes Map from pattern
+  const trackVolumes = useMemo(() => {
+    const volumes = new Map<string, number>()
+    pattern.tracks.forEach(track => {
+      volumes.set(track.soundId, track.volume ?? 1)
+    })
+    return volumes
+  }, [pattern.tracks])
 
   const handleNoteOn = useCallback((noteId: string) => {
     // Start sustained note
@@ -126,9 +136,11 @@ export function SynthPage({ onNavigate: _onNavigate }: SynthPageProps) {
               stepCount={stepCount}
               tracks={DRUM_SOUNDS}
               hiddenTracks={hiddenTracks}
+              trackVolumes={trackVolumes}
               onBpmChange={setBpm}
               onStepCountChange={handleStepCountChange}
               onToggleTrackVisibility={toggleTrackVisibility}
+              onTrackVolumeChange={setTrackVolume}
             />
 
             {/* Synth settings - on synth page */}

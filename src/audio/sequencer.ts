@@ -109,7 +109,8 @@ class Sequencer {
     this.pattern.tracks.forEach(track => {
       if (track.steps[step]?.active && !this.mutedTracks.has(track.soundId)) {
         const isSynth = track.soundType === 'synth'
-        audioEngine.schedulePlay(track.soundId, time, isSynth)
+        const volume = track.volume ?? 1 // Default to 1 if not set
+        audioEngine.schedulePlay(track.soundId, time, isSynth, volume)
       }
     })
 

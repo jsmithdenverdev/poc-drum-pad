@@ -262,11 +262,11 @@ class SynthEngine {
 
     // Apply octave shift
     const frequency = note.frequency * Math.pow(2, this.settings.octave)
-    this.playFrequency(frequency, this.context.currentTime)
+    this.playFrequency(frequency, this.context.currentTime, 1)
   }
 
   // Schedule a note to play at a specific time (for sequencer)
-  scheduleNote(noteId: string, time: number): void {
+  scheduleNote(noteId: string, time: number, volume: number = 1): void {
     if (!this.context || !this.gainNode) return
 
     const note = SYNTH_NOTES.find(n => n.id === noteId)
@@ -274,10 +274,10 @@ class SynthEngine {
 
     // Apply octave shift
     const frequency = note.frequency * Math.pow(2, this.settings.octave)
-    this.playFrequency(frequency, time)
+    this.playFrequency(frequency, time, volume)
   }
 
-  private playFrequency(frequency: number, startTime: number): void {
+  private playFrequency(frequency: number, startTime: number, volume: number = 1): void {
     if (!this.context || !this.gainNode) return
 
     const { attack, decay, sustain, release } = this.envelope
@@ -298,15 +298,19 @@ class SynthEngine {
     const envelopeGain = this.context.createGain()
     envelopeGain.gain.setValueAtTime(0, startTime)
 
+    // Apply volume scaling
+    const peakGain = 0.5 * Math.max(0, Math.min(1, volume))
+    const sustainGain = sustain * 0.5 * Math.max(0, Math.min(1, volume))
+
     // Attack
-    envelopeGain.gain.linearRampToValueAtTime(0.5, startTime + attack)
+    envelopeGain.gain.linearRampToValueAtTime(peakGain, startTime + attack)
 
     // Decay to sustain
-    envelopeGain.gain.linearRampToValueAtTime(sustain * 0.5, startTime + attack + decay)
+    envelopeGain.gain.linearRampToValueAtTime(sustainGain, startTime + attack + decay)
 
     // Release
     const releaseStart = startTime + attack + decay + 0.1
-    envelopeGain.gain.setValueAtTime(sustain * 0.5, releaseStart)
+    envelopeGain.gain.setValueAtTime(sustainGain, releaseStart)
     envelopeGain.gain.linearRampToValueAtTime(0, releaseStart + release)
 
     // Connect: oscillator -> filter -> envelope -> main gain -> destination
