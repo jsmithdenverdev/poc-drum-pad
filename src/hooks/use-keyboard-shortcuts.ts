@@ -5,10 +5,12 @@ interface UseKeyboardShortcutsOptions {
   onTrigger: (soundId: string) => void
   onUndo?: () => void
   onRedo?: () => void
+  onCopy?: () => void
+  onPaste?: () => void
   enabled?: boolean
 }
 
-export function useKeyboardShortcuts({ onTrigger, onUndo, onRedo, enabled = true }: UseKeyboardShortcutsOptions) {
+export function useKeyboardShortcuts({ onTrigger, onUndo, onRedo, onCopy, onPaste, enabled = true }: UseKeyboardShortcutsOptions) {
   // Track last trigger time per key to debounce key repeat
   const lastTriggerRef = useRef<Map<string, number>>(new Map())
   const DEBOUNCE_MS = 50  // Prevent rapid key repeat
@@ -22,7 +24,7 @@ export function useKeyboardShortcuts({ onTrigger, onUndo, onRedo, enabled = true
         return
       }
 
-      // Handle undo/redo shortcuts
+      // Handle undo/redo/copy/paste shortcuts
       if ((e.ctrlKey || e.metaKey) && !e.altKey) {
         // Ctrl+Shift+Z or Cmd+Shift+Z for redo
         if (e.shiftKey && e.key.toLowerCase() === 'z') {
@@ -40,6 +42,18 @@ export function useKeyboardShortcuts({ onTrigger, onUndo, onRedo, enabled = true
         if (e.key.toLowerCase() === 'z') {
           e.preventDefault()
           onUndo?.()
+          return
+        }
+        // Ctrl+C or Cmd+C for copy
+        if (e.key.toLowerCase() === 'c') {
+          e.preventDefault()
+          onCopy?.()
+          return
+        }
+        // Ctrl+V or Cmd+V for paste
+        if (e.key.toLowerCase() === 'v') {
+          e.preventDefault()
+          onPaste?.()
           return
         }
       }
@@ -61,5 +75,5 @@ export function useKeyboardShortcuts({ onTrigger, onUndo, onRedo, enabled = true
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onTrigger, onUndo, onRedo, enabled])
+  }, [onTrigger, onUndo, onRedo, onCopy, onPaste, enabled])
 }
