@@ -33,7 +33,18 @@ This document contains prioritized improvement items identified during the compr
 | P2 | Medium - Good to have improvements | S/M/L |
 | P3 | Low - Nice to have, future consideration | S/M/L |
 
-Effort: **S** = Small (< 2 hours), **M** = Medium (2-8 hours), **L** = Large (> 8 hours)
+Effort (T-Shirt Sizing): **S** = Small, **M** = Medium, **L** = Large, **XL** = Extra Large
+
+---
+
+## Director Decisions (2024-12-27)
+
+| Question | Decision |
+|----------|----------|
+| Unused page components | **Keep and refactor** - Introduce incremental route-based rendering |
+| Sound asset strategy | **Keep base64 only** - Delete public/sounds, prefer offline support |
+| Test priority | **Audio engine first** - Focus on complex audio logic |
+| Sprint ordering | **Approved** as proposed |
 
 ---
 
@@ -77,41 +88,67 @@ Files to create/modify:
 
 ---
 
-### ARCH-002: Remove or Utilize Unused Page Components
-**Priority:** P2 | **Effort:** S
+### ARCH-002: Implement Route-Based Page Rendering
+**Priority:** P1 | **Effort:** M | **Decision:** Keep and refactor pages
 
 **Current State:**
 - `src/components/pages/DrumPadPage.tsx` exists but is unused
 - `src/components/pages/SynthPage.tsx` exists but is unused
-- These duplicate logic that exists in App.tsx
+- App.tsx contains all page logic inline
 
 **Implementation Details:**
-Two options:
+Introduce state-based routing using the existing page components:
 
-**Option A - Remove (Recommended for POC):**
-```bash
-rm src/components/pages/DrumPadPage.tsx
-rm src/components/pages/SynthPage.tsx
+```typescript
+// src/contexts/AudioContext.tsx (NEW)
+interface AudioContextValue {
+  sounds: DrumSound[]
+  pattern: SequencerPattern
+  setPattern: (pattern: SequencerPattern) => void
+  isPlaying: boolean
+  currentStep: number
+  // ... shared state
+}
+
+export const AudioContext = createContext<AudioContextValue | null>(null)
+
+// src/App.tsx - Simplified orchestration
+function App() {
+  const [currentPage, setCurrentPage] = useState<'drums' | 'synth'>('drums')
+
+  return (
+    <AudioProvider>
+      <SequencerProvider>
+        {currentPage === 'drums' ? (
+          <DrumPadPage onNavigate={setCurrentPage} />
+        ) : (
+          <SynthPage onNavigate={setCurrentPage} />
+        )}
+      </SequencerProvider>
+    </AudioProvider>
+  )
+}
 ```
 
-**Option B - Refactor to Use:**
-Restructure App to use these page components, requiring:
-- Moving shared state to context or parent component
-- Implementing routing (even if just state-based)
-
 **Tasks:**
-1. Decide on Option A or B based on project direction
-2. If A: Delete files and remove any dead imports
-3. If B: Create shared context for audio/sequencer state, refactor pages to consume it
+1. Create `AudioContext` for shared audio engine state
+2. Create `SequencerContext` for shared sequencer state
+3. Create `PatternContext` for pattern state management
+4. Refactor `DrumPadPage` to consume contexts
+5. Refactor `SynthPage` to consume contexts
+6. Simplify App.tsx to orchestration only
+7. Add navigation callback between pages
 
 **Acceptance Criteria:**
-- No unused component files in codebase
-- Clean imports with no dead code
+- Page components fully functional with context
+- App.tsx under 100 lines
+- Swipe navigation still works
+- All existing functionality preserved
 
 ---
 
 ### ARCH-003: Consolidate Sound Asset Strategy
-**Priority:** P2 | **Effort:** S
+**Priority:** P1 | **Effort:** S | **Decision:** Keep base64 only
 
 **Current State:**
 - Audio samples exist in TWO locations:
@@ -120,30 +157,22 @@ Restructure App to use these page components, requiring:
 - This is wasteful duplication
 
 **Implementation Details:**
-Choose ONE strategy:
+Delete public/sounds directory, keep base64 for offline support:
 
-**Strategy A - Use Public Files Only (Recommended):**
-```typescript
-// src/audio/sounds.ts
-export const soundUrls = {
-  kick: '/sounds/kick.wav',
-  snare: '/sounds/snare.wav',
-  // ... etc
-}
+```bash
+# Remove public sound files
+rm -rf public/sounds/
 ```
 
-**Strategy B - Use Base64 Only:**
-- Delete `public/sounds/` directory
-- Keep base64 for offline/embedded use
-
 **Tasks:**
-1. Decide on Strategy A (smaller bundle) or B (offline support)
-2. Remove unused approach
-3. Update audio-engine.ts if URLs change
+1. Delete `public/sounds/` directory
+2. Verify audio still works with base64 sources
+3. Update any documentation referencing public sounds
 
 **Acceptance Criteria:**
-- Only one source for audio files
-- Reduced bundle size or clear justification for base64
+- `public/sounds/` directory removed
+- Audio plays correctly from base64 sources
+- No broken references in codebase
 
 ---
 
@@ -1208,43 +1237,45 @@ export function usePatternHistory(initialPattern: SequencerPattern) {
 
 | Category | P0 | P1 | P2 | P3 | Total |
 |----------|---:|---:|---:|---:|------:|
-| Architecture | 0 | 1 | 2 | 0 | 3 |
+| Architecture | 0 | 3 | 0 | 0 | 3 |
 | Audio | 0 | 1 | 1 | 1 | 3 |
 | State | 0 | 1 | 0 | 1 | 2 |
 | Components | 0 | 0 | 3 | 0 | 3 |
 | Performance | 0 | 0 | 2 | 0 | 2 |
 | UX/A11y | 0 | 1 | 2 | 1 | 4 |
 | Types | 0 | 0 | 1 | 1 | 2 |
-| Testing | 0 | 0 | 2 | 0 | 2 |
+| Testing | 0 | 1 | 1 | 0 | 2 |
 | Features | 0 | 0 | 2 | 3 | 5 |
-| **Total** | **0** | **4** | **15** | **7** | **26** |
+| **Total** | **0** | **7** | **12** | **7** | **26** |
 
 ---
 
-## Recommended Sprint Order
+## Recommended Sprint Order (Approved)
 
-### Sprint 1: Foundation (P1 items)
-1. ARCH-001: Decompose App.tsx
-2. AUDIO-001: Consolidate resume logic
-3. STATE-001: Add pattern persistence
-4. UX-001: Add error boundary
+### Sprint 1: Foundation (P1 items) | Size: L
+1. ARCH-003: Delete public/sounds (keep base64) | S
+2. ARCH-001: Decompose App.tsx | M
+3. ARCH-002: Implement route-based pages | M
+4. AUDIO-001: Consolidate resume logic | M
+5. STATE-001: Add pattern persistence | M
+6. UX-001: Add error boundary | S
+7. TEST-001: Set up audio engine tests | M
 
-### Sprint 2: Quality (P2 core)
-1. COMP-001: Optimize StepSequencer
-2. COMP-002: CSS-based DrumPad feedback
-3. AUDIO-003: Keyboard shortcuts
-4. UX-003: Accessibility improvements
+### Sprint 2: Quality (P2 core) | Size: M
+1. COMP-001: Optimize StepSequencer | S
+2. COMP-002: CSS-based DrumPad feedback | S
+3. AUDIO-003: Keyboard shortcuts | S
+4. UX-003: Accessibility improvements | S
 
-### Sprint 3: Polish (P2 remaining)
-1. PERF-002: React.memo optimization
-2. TYPE-001: Fix type misuse
-3. FEAT-001: Pattern library
-4. FEAT-002: Tap tempo
+### Sprint 3: Polish (P2 remaining) | Size: M
+1. PERF-002: React.memo optimization | S
+2. TYPE-001: Fix type misuse | S
+3. FEAT-001: Pattern library | M
+4. FEAT-002: Tap tempo | S
 
-### Sprint 4: Testing & Future (P3)
-1. TEST-001: Unit tests for audio
-2. TEST-002: Component tests
-3. Remaining P3 features as time allows
+### Sprint 4: Future (P3) | Size: L
+1. TEST-002: Component tests | M
+2. Remaining P3 features as prioritized
 
 ---
 
