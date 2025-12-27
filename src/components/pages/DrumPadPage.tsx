@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { DrumPadGrid } from '@/components/organisms/DrumPadGrid'
 import { StepSequencer } from '@/components/organisms/StepSequencer'
 import { SequencerConfig } from '@/components/molecules/SequencerConfig'
+import { PatternSelector } from '@/components/molecules/PatternSelector'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { PlayButton } from '@/components/atoms/PlayButton'
@@ -9,6 +10,7 @@ import { Settings, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAudio, useSequencerContext } from '@/contexts'
 import { DRUM_SOUNDS, ALL_SOUNDS_FOR_DISPLAY } from '@/constants'
+import { PRESET_PATTERNS } from '@/constants/preset-patterns'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
 
 interface DrumPadPageProps {
@@ -36,6 +38,7 @@ export function DrumPadPage({ onNavigate: _onNavigate }: DrumPadPageProps) {
     clearPattern,
     handleStepSelect,
     handleStepCountChange,
+    loadPattern,
   } = useSequencerContext()
 
   const handleTrigger = useCallback((soundId: string) => {
@@ -110,6 +113,20 @@ export function DrumPadPage({ onNavigate: _onNavigate }: DrumPadPageProps) {
       {showSettings && (
         <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-secondary/30 space-y-4">
           <div className="max-w-lg mx-auto space-y-4">
+            {/* Pattern Selector */}
+            {showSequencer && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Preset Patterns
+                </label>
+                <PatternSelector
+                  patterns={PRESET_PATTERNS}
+                  currentPatternId={pattern.id}
+                  onSelectPattern={loadPattern}
+                />
+              </div>
+            )}
+
             <SequencerConfig
               bpm={bpm}
               stepCount={stepCount}

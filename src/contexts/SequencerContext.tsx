@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import { useSequencer } from '@/hooks/use-sequencer'
 import { usePatternStorage } from '@/hooks/use-pattern-storage'
 import { DEFAULT_PATTERN, MAX_STEPS } from '@/constants'
+import { PRESET_PATTERNS } from '@/constants/preset-patterns'
 import type { SequencerPattern, SoundType, StepCount } from '@/types/audio.types'
 
 interface SequencerContextValue {
@@ -33,6 +34,7 @@ interface SequencerContextValue {
   clearPattern: () => void
   handleStepSelect: (stepIndex: number) => void
   handleStepCountChange: (newCount: StepCount) => void
+  loadPattern: (patternId: string) => void
 }
 
 const SequencerContext = createContext<SequencerContextValue | undefined>(undefined)
@@ -125,6 +127,21 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
     }))
   }, [])
 
+  // Load a preset pattern
+  const loadPattern = useCallback((patternId: string) => {
+    const preset = PRESET_PATTERNS.find(p => p.id === patternId)
+    if (!preset) return
+
+    // Set the pattern with the preset data
+    setPattern({
+      ...preset,
+      // Keep the current pattern id to preserve localStorage key
+      id: pattern.id,
+    })
+    // Update BPM to match the preset
+    setBpm(preset.bpm)
+  }, [pattern.id, setBpm])
+
   return (
     <SequencerContext.Provider
       value={{
@@ -149,6 +166,7 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
         clearPattern,
         handleStepSelect,
         handleStepCountChange,
+        loadPattern,
       }}
     >
       {children}
