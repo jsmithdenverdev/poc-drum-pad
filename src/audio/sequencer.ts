@@ -12,6 +12,7 @@ class Sequencer {
   private stepCallbacks: Set<SequencerCallback> = new Set()
   private stopCallbacks: Set<() => void> = new Set()
   private stepCount: StepCount = 16
+  private mutedTracks: Set<string> = new Set()
 
   // How far ahead to schedule audio (seconds)
   private readonly scheduleAhead = 0.1
@@ -112,9 +113,9 @@ class Sequencer {
   private scheduleStep(step: number, time: number): void {
     if (!this.pattern) return
 
-    // Schedule sounds for this step
+    // Schedule sounds for this step (skip muted tracks)
     this.pattern.tracks.forEach(track => {
-      if (track.steps[step]?.active) {
+      if (track.steps[step]?.active && !this.mutedTracks.has(track.soundId)) {
         const isSynth = track.soundType === 'synth'
         audioEngine.schedulePlay(track.soundId, time, isSynth)
       }
@@ -149,6 +150,10 @@ class Sequencer {
 
   getStepCount(): StepCount {
     return this.stepCount
+  }
+
+  setMutedTracks(muted: Set<string>): void {
+    this.mutedTracks = muted
   }
 
   setBpm(bpm: number): void {

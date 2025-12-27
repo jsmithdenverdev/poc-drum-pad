@@ -30,6 +30,11 @@ export function useSequencer(pattern: SequencerPattern | null) {
     })
   }, [])
 
+  // Sync hidden tracks to sequencer (for muting)
+  useEffect(() => {
+    sequencer.setMutedTracks(hiddenTracks)
+  }, [hiddenTracks])
+
   const start = useCallback(async () => {
     const started = await sequencer.start()
     if (started) {

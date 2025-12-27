@@ -9,6 +9,7 @@ interface StepSequencerProps {
   currentStep: number
   isPlaying: boolean
   stepCount: StepCount
+  hiddenTracks?: Set<string>
   onStepSelect: (stepIndex: number) => void
   className?: string
 }
@@ -20,17 +21,18 @@ export function StepSequencer({
   currentStep,
   isPlaying,
   stepCount,
+  hiddenTracks = new Set(),
   onStepSelect,
   className,
 }: StepSequencerProps) {
   // Create a map for quick sound color lookup
   const soundColorMap = new Map(sounds.map(s => [s.id, s.color]))
 
-  // Get active sound colors for each step
+  // Get active sound colors for each step (excluding hidden/muted tracks)
   const getActiveSoundsForStep = (stepIndex: number): string[] => {
     const colors: string[] = []
     pattern.tracks.forEach(track => {
-      if (track.steps[stepIndex]?.active) {
+      if (track.steps[stepIndex]?.active && !hiddenTracks.has(track.soundId)) {
         const color = soundColorMap.get(track.soundId)
         if (color) colors.push(color)
       }

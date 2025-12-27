@@ -316,6 +316,7 @@ function App() {
               currentStep={currentStep}
               isPlaying={isPlaying}
               stepCount={stepCount}
+              hiddenTracks={hiddenTracks}
               onStepSelect={handleStepSelect}
             />
           </div>
