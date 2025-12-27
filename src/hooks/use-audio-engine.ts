@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { audioEngine } from '@/audio/audio-engine'
 import type { DrumSound, AudioEngineState } from '@/types/audio.types'
 
@@ -6,31 +6,46 @@ export function useAudioEngine(sounds: DrumSound[]) {
   const [state, setState] = useState<AudioEngineState>(audioEngine.state)
   const [isInitialized, setIsInitialized] = useState(false)
   const [isSuspended, setIsSuspended] = useState(false)
+  const needsResumeOnInteraction = useRef(false)
 
   useEffect(() => {
     return audioEngine.onStateChange(setState)
   }, [])
 
-  // Track visibility changes to detect when app is backgrounded/foregrounded
+  // Track visibility changes and set up resume-on-interaction
   useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible') {
-        // Check if audio context got suspended while hidden
-        const suspended = audioEngine.isSuspended
-        setIsSuspended(suspended)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && audioEngine.isSuspended) {
+        console.log('Page visible with suspended audio - will resume on next interaction')
+        needsResumeOnInteraction.current = true
+        setIsSuspended(true)
+      }
+    }
 
-        // Try to resume immediately - this may work if there's a pending user gesture
-        if (suspended) {
-          console.log('Page visible, attempting to resume audio...')
-          await audioEngine.resume()
-          setIsSuspended(audioEngine.isSuspended)
+    // Resume audio on any user interaction if needed
+    const handleInteraction = async () => {
+      if (needsResumeOnInteraction.current && audioEngine.isSuspended) {
+        console.log('User interaction detected - resuming audio...')
+        needsResumeOnInteraction.current = false
+        const resumed = await audioEngine.resume()
+        if (resumed) {
+          console.log('Audio resumed successfully')
+          setIsSuspended(false)
         }
       }
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange)
+    // Use capture phase to ensure we get the event before it's handled
+    document.addEventListener('touchstart', handleInteraction, { capture: true })
+    document.addEventListener('mousedown', handleInteraction, { capture: true })
+    document.addEventListener('keydown', handleInteraction, { capture: true })
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      document.removeEventListener('touchstart', handleInteraction, { capture: true })
+      document.removeEventListener('mousedown', handleInteraction, { capture: true })
+      document.removeEventListener('keydown', handleInteraction, { capture: true })
     }
   }, [])
 
