@@ -5,6 +5,7 @@ import { LandscapeLayout } from '@/components/templates/LandscapeLayout'
 import { DrumPadGrid } from '@/components/organisms/DrumPadGrid'
 import { PianoKeyboard } from '@/components/organisms/PianoKeyboard'
 import { StepSequencer } from '@/components/organisms/StepSequencer'
+import { Timeline } from '@/components/organisms/Timeline'
 import { SequencerConfig } from '@/components/molecules/SequencerConfig'
 import { SynthConfig } from '@/components/molecules/SynthConfig'
 import { PatternSelector } from '@/components/molecules/PatternSelector'
@@ -17,8 +18,8 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 import { PlayButton } from '@/components/atoms/PlayButton'
-import { Volume2, AlertTriangle, RefreshCw, Menu, Trash2 } from 'lucide-react'
-import { AudioProvider, SequencerProvider, useAudio, useSequencerContext } from '@/contexts'
+import { Volume2, AlertTriangle, RefreshCw, Menu, Trash2, Save } from 'lucide-react'
+import { AudioProvider, SequencerProvider, useAudio, useSequencerContext, TimelineProvider, useTimelineContext } from '@/contexts'
 import { SWIPE_THRESHOLD, DRUM_SOUNDS, ALL_SOUNDS_FOR_DISPLAY } from '@/constants'
 import { PRESET_PATTERNS } from '@/constants/preset-patterns'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
@@ -26,7 +27,8 @@ import { cn } from '@/lib/utils'
 
 // Main app content (needs to be inside providers)
 function AppContent() {
-  const [currentPage, setCurrentPage] = useState(0) // 0 = drums, 1 = synth
+  const [currentInstrumentPage, setCurrentInstrumentPage] = useState(0) // 0 = drums, 1 = synth
+  const [currentSequencerPage, setCurrentSequencerPage] = useState(0) // 0 = sequencer, 1 = timeline
   const {
     init,
     needsInit,
@@ -70,8 +72,21 @@ function AppContent() {
     redo,
   } = useSequencerContext()
 
-  // Swipe tracking
-  const touchStartX = useRef<number | null>(null)
+  const {
+    timeline,
+    savedPatterns,
+    savePattern,
+    currentMeasure,
+    isTimelinePlaying,
+    selectedMeasure,
+    setSelectedMeasure,
+    setSelectedBlock,
+  } = useTimelineContext()
+
+  // Swipe tracking for instruments
+  const instrumentTouchStartX = useRef<number | null>(null)
+  // Swipe tracking for sequencer/timeline
+  const sequencerTouchStartX = useRef<number | null>(null)
 
   // Create track volumes Map from pattern
   const trackVolumes = useMemo(() => {
@@ -115,7 +130,7 @@ function AppContent() {
 
   // Keyboard shortcuts (only active on drum page)
   useKeyboardShortcuts({
-    onTrigger: currentPage === 0 ? handleDrumTrigger : undefined,
+    onTrigger: currentInstrumentPage === 0 ? handleDrumTrigger : undefined,
     onUndo: undo,
     onRedo: redo,
     onCopy: handleCopy,
@@ -123,28 +138,56 @@ function AppContent() {
     enabled: true,
   })
 
-  // Handle touch start
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX
+  // Handle instrument touch start
+  const handleInstrumentTouchStart = useCallback((e: React.TouchEvent) => {
+    instrumentTouchStartX.current = e.touches[0].clientX
   }, [])
 
-  // Handle touch end
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (touchStartX.current === null) return
+  // Handle instrument touch end
+  const handleInstrumentTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (instrumentTouchStartX.current === null) return
 
     const touchEndX = e.changedTouches[0].clientX
-    const diff = touchEndX - touchStartX.current
+    const diff = touchEndX - instrumentTouchStartX.current
 
     if (Math.abs(diff) > SWIPE_THRESHOLD) {
-      if (diff > 0 && currentPage > 0) {
-        setCurrentPage(prev => prev - 1)
-      } else if (diff < 0 && currentPage < 1) {
-        setCurrentPage(prev => prev + 1)
+      if (diff > 0 && currentInstrumentPage > 0) {
+        setCurrentInstrumentPage(prev => prev - 1)
+      } else if (diff < 0 && currentInstrumentPage < 1) {
+        setCurrentInstrumentPage(prev => prev + 1)
       }
     }
 
-    touchStartX.current = null
-  }, [currentPage])
+    instrumentTouchStartX.current = null
+  }, [currentInstrumentPage])
+
+  // Handle sequencer/timeline touch start
+  const handleSequencerTouchStart = useCallback((e: React.TouchEvent) => {
+    sequencerTouchStartX.current = e.touches[0].clientX
+  }, [])
+
+  // Handle sequencer/timeline touch end
+  const handleSequencerTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (sequencerTouchStartX.current === null) return
+
+    const touchEndX = e.changedTouches[0].clientX
+    const diff = touchEndX - sequencerTouchStartX.current
+
+    if (Math.abs(diff) > SWIPE_THRESHOLD) {
+      if (diff > 0 && currentSequencerPage > 0) {
+        setCurrentSequencerPage(prev => prev - 1)
+      } else if (diff < 0 && currentSequencerPage < 1) {
+        setCurrentSequencerPage(prev => prev + 1)
+      }
+    }
+
+    sequencerTouchStartX.current = null
+  }, [currentSequencerPage])
+
+  // Save current pattern to library
+  const handleSavePattern = useCallback(() => {
+    savePattern(pattern)
+  }, [savePattern, pattern])
 
   // Handle init button
   const handleInit = useCallback(async () => {
@@ -152,6 +195,7 @@ function AppContent() {
   }, [init])
 
   const instrumentNames = ['Drum Pad', 'Synth']
+  const sequencerViewNames = ['Sequencer', 'Timeline']
 
   // Show init screen if audio not ready
   if (needsInit) {
@@ -260,12 +304,21 @@ function AppContent() {
               >
                 <Menu className="w-5 h-5" />
               </Button>
-              <h1 className="text-lg font-semibold tracking-tight">{instrumentNames[currentPage]}</h1>
+              <h1 className="text-lg font-semibold tracking-tight">{instrumentNames[currentInstrumentPage]}</h1>
             </div>
 
             {/* Right side - Controls */}
             <div className="flex items-center gap-2">
               <PlayButton isPlaying={isPlaying} onToggle={toggle} />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSavePattern}
+                title="Save pattern to library"
+                className="rounded-lg text-muted-foreground hover:text-foreground"
+              >
+                <Save className="w-4 h-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
@@ -339,30 +392,73 @@ function AppContent() {
           </SheetContent>
         </Sheet>
 
-        {/* Sequencer - static above instruments */}
-        <div className="flex-shrink-0 py-4 border-b border-border/50 bg-secondary/20">
-          <StepSequencer
-            pattern={pattern}
-            sounds={ALL_SOUNDS_FOR_DISPLAY}
-            selectedSteps={selectedSteps}
-            currentStep={currentStep}
-            isPlaying={isPlaying}
-            stepCount={stepCount}
-            hiddenTracks={hiddenTracks}
-            onStepSelect={handleStepSelect}
-          />
+        {/* Swipeable Sequencer/Timeline area */}
+        <div
+          className="flex-shrink-0 border-b border-border/50 bg-secondary/20 overflow-hidden relative"
+          onTouchStart={handleSequencerTouchStart}
+          onTouchEnd={handleSequencerTouchEnd}
+        >
+          {/* Sequencer/Timeline container - slides horizontally */}
+          <div
+            className="flex transition-transform duration-300 ease-out"
+            style={{ transform: `translateX(-${currentSequencerPage * 100}%)` }}
+          >
+            {/* Step Sequencer */}
+            <div className="w-full flex-shrink-0 py-4">
+              <StepSequencer
+                pattern={pattern}
+                sounds={ALL_SOUNDS_FOR_DISPLAY}
+                selectedSteps={selectedSteps}
+                currentStep={currentStep}
+                isPlaying={isPlaying}
+                stepCount={stepCount}
+                hiddenTracks={hiddenTracks}
+                onStepSelect={handleStepSelect}
+              />
+            </div>
+
+            {/* Timeline */}
+            <div className="w-full flex-shrink-0 py-4">
+              <Timeline
+                timeline={timeline}
+                savedPatterns={savedPatterns}
+                currentMeasure={currentMeasure}
+                isPlaying={isTimelinePlaying}
+                selectedMeasure={selectedMeasure}
+                onMeasureSelect={setSelectedMeasure}
+                onBlockSelect={setSelectedBlock}
+              />
+            </div>
+          </div>
+
+          {/* Sequencer/Timeline page indicator dots */}
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+            {[0, 1].map(index => (
+              <button
+                key={index}
+                className={cn(
+                  'h-1 rounded-full transition-all duration-200',
+                  currentSequencerPage === index
+                    ? 'bg-primary w-4'
+                    : 'bg-muted-foreground/40 w-1 hover:bg-muted-foreground/60',
+                )}
+                onClick={() => setCurrentSequencerPage(index)}
+                aria-label={sequencerViewNames[index]}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Swipeable instrument area */}
         <div
           className="flex-1 overflow-hidden relative min-h-0"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
+          onTouchStart={handleInstrumentTouchStart}
+          onTouchEnd={handleInstrumentTouchEnd}
         >
           {/* Instruments container - slides horizontally */}
           <div
             className="flex h-full transition-transform duration-300 ease-out"
-            style={{ transform: `translateX(-${currentPage * 100}%)` }}
+            style={{ transform: `translateX(-${currentInstrumentPage * 100}%)` }}
           >
             {/* Drum Pads */}
             <div className="w-full h-full flex-shrink-0 flex items-center justify-center">
@@ -386,11 +482,11 @@ function AppContent() {
                 key={index}
                 className={cn(
                   'h-1.5 rounded-full transition-all duration-200',
-                  currentPage === index
+                  currentInstrumentPage === index
                     ? 'bg-primary w-5'
                     : 'bg-muted-foreground/40 w-1.5 hover:bg-muted-foreground/60',
                 )}
-                onClick={() => setCurrentPage(index)}
+                onClick={() => setCurrentInstrumentPage(index)}
                 aria-label={instrumentNames[index]}
               />
             ))}
@@ -408,7 +504,9 @@ function App() {
   return (
     <AudioProvider>
       <SequencerProvider>
-        <AppContent />
+        <TimelineProvider>
+          <AppContent />
+        </TimelineProvider>
       </SequencerProvider>
     </AudioProvider>
   )

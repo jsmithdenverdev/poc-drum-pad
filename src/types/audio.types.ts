@@ -47,3 +47,24 @@ export interface SequencerConfig {
   stepCount: StepCount
   hiddenTracks: Set<string> // Track soundIds that are hidden
 }
+
+// Timeline types for full track arrangement
+export interface TimelineBlock {
+  id: string
+  patternId: string // References a saved pattern
+  startMeasure: number // Position in the timeline (0-indexed)
+  lengthMeasures: number // Duration in measures
+}
+
+export interface Timeline {
+  id: string
+  name: string
+  bpm: number
+  blocks: TimelineBlock[]
+}
+
+// Saved patterns that can be referenced in timeline
+export interface SavedPattern extends SequencerPattern {
+  createdAt: number
+  updatedAt: number
+}
