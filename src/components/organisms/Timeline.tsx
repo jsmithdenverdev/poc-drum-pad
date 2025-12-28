@@ -18,6 +18,7 @@ interface TimelineProps {
   onToggleMute: (trackId: string) => void
   onCellClick: (trackId: string, measure: number) => void
   onBlockClick: (trackId: string, block: TimelineBlock) => void
+  onBlockDelete: (trackId: string, blockId: string) => void
   className?: string
 }
 
@@ -38,6 +39,7 @@ export function Timeline({
   onToggleMute,
   onCellClick,
   onBlockClick,
+  onBlockDelete,
   className,
 }: TimelineProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -117,6 +119,7 @@ export function Timeline({
                 selectedBlockId={selectedBlockId}
                 onCellClick={(measure) => onCellClick(track.id, measure)}
                 onBlockClick={(block) => onBlockClick(track.id, block)}
+                onBlockDelete={(blockId) => onBlockDelete(track.id, blockId)}
                 className="border-b border-border/30"
               />
             ))}

@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { X } from 'lucide-react'
 import type { TimelineBlock as TimelineBlockType } from '@/types/audio.types'
 
 interface TimelineBlockProps {
@@ -7,6 +8,7 @@ interface TimelineBlockProps {
   color: string
   isSelected: boolean
   onClick: () => void
+  onDelete?: () => void
   className?: string
 }
 
@@ -16,14 +18,13 @@ export function TimelineBlock({
   color,
   isSelected,
   onClick,
+  onDelete,
   className,
 }: TimelineBlockProps) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       className={cn(
-        'w-full h-full rounded-lg transition-all duration-75',
+        'relative w-full h-full rounded-lg transition-all duration-75',
         'flex items-start justify-start p-1.5',
         'cursor-pointer hover:brightness-110',
         className
@@ -34,6 +35,9 @@ export function TimelineBlock({
           ? `0 0 0 2px ${color}, 0 0 12px ${color}80, inset 1px 1px 3px rgba(255,255,255,0.2), inset -1px -1px 3px rgba(0,0,0,0.3)`
           : 'inset 1px 1px 3px rgba(255,255,255,0.15), inset -1px -1px 3px rgba(0,0,0,0.3)',
       }}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
       aria-label={`${patternName} block, ${block.lengthMeasures} measures at measure ${block.startMeasure + 1}${isSelected ? ', selected' : ''}`}
       aria-pressed={isSelected}
     >
@@ -45,6 +49,21 @@ export function TimelineBlock({
       >
         {patternName}
       </span>
-    </button>
+
+      {/* Delete button - visible when selected */}
+      {isSelected && onDelete && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+          className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors shadow-sm"
+          aria-label={`Delete ${patternName} block`}
+        >
+          <X className="h-2.5 w-2.5" />
+        </button>
+      )}
+    </div>
   )
 }

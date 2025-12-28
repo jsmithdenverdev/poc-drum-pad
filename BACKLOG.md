@@ -178,7 +178,7 @@ Implement track controls:
 ## Phase 3: Block Placement
 
 ### TIMELINE-011: Create PatternPickerModal
-**Status:** ⬜ TODO
+**Status:** ✅ DONE
 
 Create modal for selecting patterns:
 - Shows all saved patterns
@@ -191,7 +191,7 @@ Create modal for selecting patterns:
 ---
 
 ### TIMELINE-012: Implement Tap to Add Block
-**Status:** ⬜ TODO
+**Status:** ✅ DONE
 
 Add block placement interaction:
 - Tap empty cell in track row
@@ -204,7 +204,7 @@ Add block placement interaction:
 ---
 
 ### TIMELINE-013: Implement Block Deletion
-**Status:** ⬜ TODO
+**Status:** ✅ DONE
 
 Add block deletion:
 - Tap block to select
@@ -311,11 +311,11 @@ Show mini waveform or step preview inside blocks.
 |-------|-------|------|-------------|------|
 | Phase 1 | 7 | 7 | 0 | 0 |
 | Phase 2 | 3 | 3 | 0 | 0 |
-| Phase 3 | 3 | 0 | 0 | 3 |
+| Phase 3 | 3 | 3 | 0 | 0 |
 | Phase 4 | 3 | 0 | 0 | 3 |
 | Phase 5 | 2 | 0 | 0 | 2 |
 | Stretch | 3 | 0 | 0 | 3 |
-| **Total** | **21** | **10** | **0** | **11** |
+| **Total** | **21** | **13** | **0** | **8** |
 
 ---
 

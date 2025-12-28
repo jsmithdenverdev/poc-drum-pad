@@ -6,6 +6,7 @@ import { DrumPadGrid } from '@/components/organisms/DrumPadGrid'
 import { PianoKeyboard } from '@/components/organisms/PianoKeyboard'
 import { StepSequencer } from '@/components/organisms/StepSequencer'
 import { Timeline } from '@/components/organisms/Timeline'
+import { PatternPickerModal } from '@/components/organisms/PatternPickerModal'
 import { SequencerConfig } from '@/components/molecules/SequencerConfig'
 import { SynthConfig } from '@/components/molecules/SynthConfig'
 import { PatternSelector } from '@/components/molecules/PatternSelector'
@@ -20,7 +21,7 @@ import {
 import { PlayButton } from '@/components/atoms/PlayButton'
 import { Volume2, AlertTriangle, RefreshCw, Menu, Trash2, Save } from 'lucide-react'
 import { AudioProvider, SequencerProvider, useAudio, useSequencerContext, TimelineProvider, useTimelineContext } from '@/contexts'
-import type { TimelineBlock } from '@/types/audio.types'
+import type { TimelineBlock, SavedPattern } from '@/types/audio.types'
 import { SWIPE_THRESHOLD, DRUM_SOUNDS, ALL_SOUNDS_FOR_DISPLAY } from '@/constants'
 import { PRESET_PATTERNS } from '@/constants/preset-patterns'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
@@ -86,7 +87,16 @@ function AppContent() {
     addTrack,
     removeTrack,
     toggleTrackMute,
+    addBlock,
+    removeBlock,
   } = useTimelineContext()
+
+  // Pattern picker modal state
+  const [patternPickerOpen, setPatternPickerOpen] = useState(false)
+  const [pendingBlockPlacement, setPendingBlockPlacement] = useState<{
+    trackId: string
+    measure: number
+  } | null>(null)
 
   // Swipe tracking for instruments
   const instrumentTouchStartX = useRef<number | null>(null)
@@ -195,14 +205,31 @@ function AppContent() {
   }, [savePattern, pattern])
 
   // Timeline handlers
-  const handleTimelineCellClick = useCallback((_trackId: string, _measure: number) => {
-    // TODO: Open pattern picker modal (TIMELINE-011)
-    // For now, this is a placeholder - the pattern picker will be implemented in Phase 3
+  const handleTimelineCellClick = useCallback((trackId: string, measure: number) => {
+    setPendingBlockPlacement({ trackId, measure })
+    setPatternPickerOpen(true)
+  }, [])
+
+  const handlePatternSelect = useCallback((pattern: SavedPattern) => {
+    if (pendingBlockPlacement) {
+      addBlock(pendingBlockPlacement.trackId, pattern.id, pendingBlockPlacement.measure)
+    }
+    setPatternPickerOpen(false)
+    setPendingBlockPlacement(null)
+  }, [pendingBlockPlacement, addBlock])
+
+  const handlePatternPickerClose = useCallback(() => {
+    setPatternPickerOpen(false)
+    setPendingBlockPlacement(null)
   }, [])
 
   const handleTimelineBlockClick = useCallback((_trackId: string, block: TimelineBlock) => {
     setSelectedBlock(block)
   }, [setSelectedBlock])
+
+  const handleBlockDelete = useCallback((trackId: string, blockId: string) => {
+    removeBlock(trackId, blockId)
+  }, [removeBlock])
 
   // Handle init button
   const handleInit = useCallback(async () => {
@@ -447,6 +474,7 @@ function AppContent() {
                 onToggleMute={toggleTrackMute}
                 onCellClick={handleTimelineCellClick}
                 onBlockClick={handleTimelineBlockClick}
+                onBlockDelete={handleBlockDelete}
               />
             </div>
           </div>
@@ -515,6 +543,16 @@ function AppContent() {
       </div>
 
       <DebugDrawer />
+
+      {/* Pattern Picker Modal */}
+      <PatternPickerModal
+        open={patternPickerOpen}
+        onClose={handlePatternPickerClose}
+        onSelectPattern={handlePatternSelect}
+        savedPatterns={savedPatterns}
+        trackName={pendingBlockPlacement ? timeline.tracks.find(t => t.id === pendingBlockPlacement.trackId)?.name : undefined}
+        measureNumber={pendingBlockPlacement?.measure}
+      />
     </>
   )
 }
