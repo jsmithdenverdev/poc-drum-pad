@@ -89,6 +89,8 @@ function AppContent() {
     toggleTrackMute,
     addBlock,
     removeBlock,
+    moveBlock,
+    resizeBlock,
   } = useTimelineContext()
 
   // Pattern picker modal state
@@ -230,6 +232,26 @@ function AppContent() {
   const handleBlockDelete = useCallback((trackId: string, blockId: string) => {
     removeBlock(trackId, blockId)
   }, [removeBlock])
+
+  const handleBlockMove = useCallback((trackId: string, blockId: string, deltaMeasures: number) => {
+    // Find the block to get its current position
+    const track = timeline.tracks.find(t => t.id === trackId)
+    const block = track?.blocks.find(b => b.id === blockId)
+    if (block) {
+      const newStart = Math.max(0, block.startMeasure + deltaMeasures)
+      moveBlock(trackId, blockId, newStart)
+    }
+  }, [timeline.tracks, moveBlock])
+
+  const handleBlockResize = useCallback((trackId: string, blockId: string, deltaMeasures: number) => {
+    // Find the block to get its current length
+    const track = timeline.tracks.find(t => t.id === trackId)
+    const block = track?.blocks.find(b => b.id === blockId)
+    if (block) {
+      const newLength = Math.max(1, block.lengthMeasures + deltaMeasures)
+      resizeBlock(trackId, blockId, newLength)
+    }
+  }, [timeline.tracks, resizeBlock])
 
   // Handle init button
   const handleInit = useCallback(async () => {
@@ -475,6 +497,8 @@ function AppContent() {
                 onCellClick={handleTimelineCellClick}
                 onBlockClick={handleTimelineBlockClick}
                 onBlockDelete={handleBlockDelete}
+                onBlockMove={handleBlockMove}
+                onBlockResize={handleBlockResize}
               />
             </div>
           </div>

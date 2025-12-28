@@ -19,6 +19,8 @@ interface TimelineProps {
   onCellClick: (trackId: string, measure: number) => void
   onBlockClick: (trackId: string, block: TimelineBlock) => void
   onBlockDelete: (trackId: string, blockId: string) => void
+  onBlockMove: (trackId: string, blockId: string, deltaMeasures: number) => void
+  onBlockResize?: (trackId: string, blockId: string, deltaMeasures: number) => void
   className?: string
 }
 
@@ -40,6 +42,8 @@ export function Timeline({
   onCellClick,
   onBlockClick,
   onBlockDelete,
+  onBlockMove,
+  onBlockResize,
   className,
 }: TimelineProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -120,6 +124,8 @@ export function Timeline({
                 onCellClick={(measure) => onCellClick(track.id, measure)}
                 onBlockClick={(block) => onBlockClick(track.id, block)}
                 onBlockDelete={(blockId) => onBlockDelete(track.id, blockId)}
+                onBlockMove={(blockId, delta) => onBlockMove(track.id, blockId, delta)}
+                onBlockResize={onBlockResize ? (blockId, delta) => onBlockResize(track.id, blockId, delta) : undefined}
                 className="border-b border-border/30"
               />
             ))}

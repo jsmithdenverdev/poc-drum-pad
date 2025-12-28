@@ -218,7 +218,7 @@ Add block deletion:
 ## Phase 4: Block Editing
 
 ### TIMELINE-014: Implement Block Selection
-**Status:** ⬜ TODO
+**Status:** ✅ DONE
 
 Add block selection state:
 - Tap block to select
@@ -230,7 +230,7 @@ Add block selection state:
 ---
 
 ### TIMELINE-015: Implement Block Moving
-**Status:** ⬜ TODO
+**Status:** ✅ DONE
 
 Add block drag-to-move:
 - Long-press or drag to start moving
@@ -243,7 +243,7 @@ Add block drag-to-move:
 ---
 
 ### TIMELINE-016: Implement Block Resizing
-**Status:** ⬜ TODO
+**Status:** ✅ DONE
 
 Add block resize handles:
 - Drag left/right edges
@@ -312,10 +312,10 @@ Show mini waveform or step preview inside blocks.
 | Phase 1 | 7 | 7 | 0 | 0 |
 | Phase 2 | 3 | 3 | 0 | 0 |
 | Phase 3 | 3 | 3 | 0 | 0 |
-| Phase 4 | 3 | 0 | 0 | 3 |
+| Phase 4 | 3 | 3 | 0 | 0 |
 | Phase 5 | 2 | 0 | 0 | 2 |
 | Stretch | 3 | 0 | 0 | 3 |
-| **Total** | **21** | **13** | **0** | **8** |
+| **Total** | **21** | **16** | **0** | **5** |
 
 ---
 

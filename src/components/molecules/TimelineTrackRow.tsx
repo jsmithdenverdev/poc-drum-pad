@@ -14,6 +14,8 @@ interface TimelineTrackRowProps {
   onCellClick: (measure: number) => void
   onBlockClick: (block: TimelineBlockType) => void
   onBlockDelete: (blockId: string) => void
+  onBlockMove: (blockId: string, deltaMeasures: number) => void
+  onBlockResize?: (blockId: string, deltaMeasures: number) => void
   className?: string
 }
 
@@ -28,6 +30,8 @@ export function TimelineTrackRow({
   onCellClick,
   onBlockClick,
   onBlockDelete,
+  onBlockMove,
+  onBlockResize,
   className,
 }: TimelineTrackRowProps) {
   // Create array of measure indices
@@ -98,8 +102,11 @@ export function TimelineTrackRow({
                 patternName={patternName}
                 color={track.color}
                 isSelected={isSelected}
+                measureWidth={measureWidth}
                 onClick={() => onBlockClick(block)}
                 onDelete={() => onBlockDelete(block.id)}
+                onMove={(delta) => onBlockMove(block.id, delta)}
+                onResize={onBlockResize ? (delta) => onBlockResize(block.id, delta) : undefined}
               />
             </div>
           )
