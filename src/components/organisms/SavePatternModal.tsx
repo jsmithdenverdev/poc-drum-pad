@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -25,14 +25,23 @@ export function SavePatternModal({
   const [name, setName] = useState(defaultName)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Reset and focus when opened
+  // Handle open state changes
+  const handleOpenChange = useCallback((isOpen: boolean) => {
+    if (isOpen) {
+      // Reset name when opening
+      setName(defaultName)
+    } else {
+      onClose()
+    }
+  }, [defaultName, onClose])
+
+  // Focus input after sheet animation
   useEffect(() => {
     if (open) {
-      setName(defaultName)
-      // Focus input after sheet animation
-      setTimeout(() => inputRef.current?.focus(), 100)
+      const timer = setTimeout(() => inputRef.current?.focus(), 100)
+      return () => clearTimeout(timer)
     }
-  }, [open, defaultName])
+  }, [open])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,7 +53,7 @@ export function SavePatternModal({
   }
 
   return (
-    <Sheet open={open} onOpenChange={(isOpen: boolean) => !isOpen && onClose()}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent side="bottom" className="max-h-[50vh] flex flex-col rounded-t-xl">
         <SheetHeader className="pb-2">
           <SheetTitle className="text-lg">Save Pattern</SheetTitle>
