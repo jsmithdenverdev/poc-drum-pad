@@ -143,6 +143,8 @@ export function TimelineBlock({
           ? `0 0 0 2px ${color}, 0 0 12px ${color}80, inset 1px 1px 3px rgba(255,255,255,0.2), inset -1px -1px 3px rgba(0,0,0,0.3)`
           : 'inset 1px 1px 3px rgba(255,255,255,0.15), inset -1px -1px 3px rgba(0,0,0,0.3)',
         transform: isDragging ? `translateX(${dragOffset}px)` : undefined,
+        // Prevent scroll during drag/resize operations when selected
+        touchAction: isSelected ? 'none' : 'auto',
       }}
       onClick={handleClick}
       onPointerDown={handlePointerDown}
@@ -170,18 +172,19 @@ export function TimelineBlock({
         </div>
       )}
 
-      {/* Resize handle - visible when selected */}
+      {/* Resize handle - visible when selected, larger touch target */}
       {isSelected && onResize && !isDragging && (
         <div
           className={cn(
-            'absolute right-0 inset-y-0 w-3 cursor-ew-resize',
+            'absolute -right-2 inset-y-0 w-6 cursor-ew-resize',
             'flex items-center justify-center',
-            'hover:bg-white/20 rounded-r-lg transition-colors',
+            'hover:bg-white/20 transition-colors',
             isResizing && 'bg-white/30'
           )}
+          style={{ touchAction: 'none' }}
           onPointerDown={handleResizePointerDown}
         >
-          <div className="w-0.5 h-4 bg-white/50 rounded-full" />
+          <div className="w-0.5 h-6 bg-white/60 rounded-full" />
         </div>
       )}
 
