@@ -8,7 +8,7 @@ import type { Timeline as TimelineType, TimelineBlock, SavedPattern } from '@/ty
 interface TimelineProps {
   timeline: TimelineType
   savedPatterns: SavedPattern[]
-  currentMeasure: number
+  playbackPosition: number
   isPlaying: boolean
   selectedTrackId: string | null
   selectedBlockId: string | null
@@ -31,7 +31,7 @@ const MEASURE_WIDTH = 40 // pixels per measure
 export function Timeline({
   timeline,
   savedPatterns,
-  currentMeasure,
+  playbackPosition,
   isPlaying,
   selectedTrackId,
   selectedBlockId,
@@ -46,6 +46,8 @@ export function Timeline({
   onBlockResize,
   className,
 }: TimelineProps) {
+  const currentMeasure = Math.floor(playbackPosition)
+  const playheadX = playbackPosition * MEASURE_WIDTH
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const hasTracks = timeline.tracks.length > 0
@@ -88,7 +90,7 @@ export function Timeline({
             <MeasureRuler
               measureCount={MEASURE_COUNT}
               measureWidth={MEASURE_WIDTH}
-              currentMeasure={currentMeasure}
+              playbackPosition={playbackPosition}
               isPlaying={isPlaying}
             />
           </div>
@@ -110,7 +112,7 @@ export function Timeline({
 
         {/* Track rows - scrollable */}
         <div className="flex-1 overflow-auto">
-          <div style={{ minWidth: `${MEASURE_COUNT * MEASURE_WIDTH}px` }}>
+          <div className="relative" style={{ minWidth: `${MEASURE_COUNT * MEASURE_WIDTH}px` }}>
             {timeline.tracks.map((track) => (
               <TimelineTrackRow
                 key={track.id}
@@ -129,6 +131,14 @@ export function Timeline({
                 className="border-b border-border/30"
               />
             ))}
+
+            {/* Playhead line extending through all tracks */}
+            {isPlaying && (
+              <div
+                className="absolute top-0 bottom-0 w-0.5 bg-primary shadow-[0_0_4px_rgba(var(--primary),0.5)] pointer-events-none z-20"
+                style={{ left: `${playheadX}px` }}
+              />
+            )}
           </div>
         </div>
       </div>

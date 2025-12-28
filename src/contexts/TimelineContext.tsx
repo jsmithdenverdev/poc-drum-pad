@@ -27,6 +27,7 @@ interface TimelineContextValue {
 
   // Playback state
   currentMeasure: number
+  playbackPosition: number // Continuous 0.0 to measureCount for smooth animation
   isTimelinePlaying: boolean
   toggleTimelinePlayback: () => void
 
@@ -129,10 +130,13 @@ function savePatternsToStorage(patterns: SavedPattern[]): void {
   }
 }
 
+const MEASURE_COUNT = 16
+
 export function TimelineProvider({ children }: { children: ReactNode }) {
   const [timeline, setTimeline] = useState<Timeline>(loadTimelineFromStorage)
   const [savedPatterns, setSavedPatterns] = useState<SavedPattern[]>(loadPatternsFromStorage)
   const [currentMeasure, setCurrentMeasure] = useState(0)
+  const [playbackPosition, setPlaybackPosition] = useState(0)
   const [isTimelinePlaying, setIsTimelinePlaying] = useState(false)
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null)
   const [selectedMeasure, setSelectedMeasure] = useState<number | null>(null)
@@ -140,7 +144,9 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
 
   const saveTimelineTimeoutRef = useRef<number | null>(null)
   const savePatternsTimeoutRef = useRef<number | null>(null)
-  const playbackIntervalRef = useRef<number | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
+  const playbackStartTimeRef = useRef<number | null>(null)
+  const playbackStartPositionRef = useRef<number>(0)
 
   // Debounced save for timeline
   useEffect(() => {
@@ -172,24 +178,42 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
     }
   }, [savedPatterns])
 
-  // Timeline playback - advance measure based on BPM
+  // Timeline playback - smooth animation using requestAnimationFrame
   useEffect(() => {
     if (isTimelinePlaying) {
       // Calculate ms per measure (4 beats per measure, at timeline BPM)
       const msPerBeat = (60 / timeline.bpm) * 1000
       const msPerMeasure = msPerBeat * 4
 
-      playbackIntervalRef.current = window.setInterval(() => {
-        setCurrentMeasure(prev => (prev + 1) % 16) // Loop at 16 measures
-      }, msPerMeasure)
+      // Initialize start time if not set
+      if (playbackStartTimeRef.current === null) {
+        playbackStartTimeRef.current = performance.now()
+        playbackStartPositionRef.current = playbackPosition
+      }
+
+      const animate = (now: number) => {
+        if (!playbackStartTimeRef.current) return
+
+        const elapsed = now - playbackStartTimeRef.current
+        const measuresElapsed = elapsed / msPerMeasure
+        const newPosition = (playbackStartPositionRef.current + measuresElapsed) % MEASURE_COUNT
+
+        setPlaybackPosition(newPosition)
+        setCurrentMeasure(Math.floor(newPosition))
+
+        animationFrameRef.current = requestAnimationFrame(animate)
+      }
+
+      animationFrameRef.current = requestAnimationFrame(animate)
     }
 
     return () => {
-      if (playbackIntervalRef.current !== null) {
-        window.clearInterval(playbackIntervalRef.current)
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current)
+        animationFrameRef.current = null
       }
     }
-  }, [isTimelinePlaying, timeline.bpm])
+  }, [isTimelinePlaying, timeline.bpm, playbackPosition])
 
   // Save a pattern to the library
   const savePattern = useCallback((pattern: SequencerPattern, name?: string): SavedPattern => {
@@ -342,10 +366,14 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
 
   // Toggle timeline playback
   const toggleTimelinePlayback = useCallback(() => {
-    setIsTimelinePlaying(prev => !prev)
     if (isTimelinePlaying) {
-      setCurrentMeasure(0)
+      // Stopping - reset refs
+      playbackStartTimeRef.current = null
+    } else {
+      // Starting - will be initialized in the effect
+      playbackStartTimeRef.current = null
     }
+    setIsTimelinePlaying(prev => !prev)
   }, [isTimelinePlaying])
 
   return (
@@ -366,6 +394,7 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
         moveBlock,
         resizeBlock,
         currentMeasure,
+        playbackPosition,
         isTimelinePlaying,
         toggleTimelinePlayback,
         selectedTrackId,

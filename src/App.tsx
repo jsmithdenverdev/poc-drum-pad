@@ -78,7 +78,7 @@ function AppContent() {
     timeline,
     savedPatterns,
     savePattern,
-    currentMeasure,
+    playbackPosition,
     isTimelinePlaying,
     selectedTrackId,
     setSelectedTrackId,
@@ -509,7 +509,7 @@ function AppContent() {
               <Timeline
                 timeline={timeline}
                 savedPatterns={savedPatterns}
-                currentMeasure={currentMeasure}
+                playbackPosition={playbackPosition}
                 isPlaying={isTimelinePlaying}
                 selectedTrackId={selectedTrackId}
                 selectedBlockId={selectedBlock?.id ?? null}
