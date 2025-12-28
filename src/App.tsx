@@ -20,6 +20,7 @@ import {
 import { PlayButton } from '@/components/atoms/PlayButton'
 import { Volume2, AlertTriangle, RefreshCw, Menu, Trash2, Save } from 'lucide-react'
 import { AudioProvider, SequencerProvider, useAudio, useSequencerContext, TimelineProvider, useTimelineContext } from '@/contexts'
+import type { TimelineBlock } from '@/types/audio.types'
 import { SWIPE_THRESHOLD, DRUM_SOUNDS, ALL_SOUNDS_FOR_DISPLAY } from '@/constants'
 import { PRESET_PATTERNS } from '@/constants/preset-patterns'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
@@ -78,9 +79,11 @@ function AppContent() {
     savePattern,
     currentMeasure,
     isTimelinePlaying,
-    selectedMeasure,
-    setSelectedMeasure,
+    selectedTrackId,
+    setSelectedTrackId,
+    selectedBlock,
     setSelectedBlock,
+    addTrack,
   } = useTimelineContext()
 
   // Swipe tracking for instruments
@@ -188,6 +191,16 @@ function AppContent() {
   const handleSavePattern = useCallback(() => {
     savePattern(pattern)
   }, [savePattern, pattern])
+
+  // Timeline handlers
+  const handleTimelineCellClick = useCallback((_trackId: string, _measure: number) => {
+    // TODO: Open pattern picker modal (TIMELINE-011)
+    // For now, this is a placeholder - the pattern picker will be implemented in Phase 3
+  }, [])
+
+  const handleTimelineBlockClick = useCallback((_trackId: string, block: TimelineBlock) => {
+    setSelectedBlock(block)
+  }, [setSelectedBlock])
 
   // Handle init button
   const handleInit = useCallback(async () => {
@@ -424,9 +437,12 @@ function AppContent() {
                 savedPatterns={savedPatterns}
                 currentMeasure={currentMeasure}
                 isPlaying={isTimelinePlaying}
-                selectedMeasure={selectedMeasure}
-                onMeasureSelect={setSelectedMeasure}
-                onBlockSelect={setSelectedBlock}
+                selectedTrackId={selectedTrackId}
+                selectedBlockId={selectedBlock?.id ?? null}
+                onTrackSelect={setSelectedTrackId}
+                onAddTrack={addTrack}
+                onCellClick={handleTimelineCellClick}
+                onBlockClick={handleTimelineBlockClick}
               />
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
-import type { Timeline, TimelineBlock, SavedPattern, SequencerPattern } from '@/types/audio.types'
+import type { Timeline, TimelineTrack, TimelineBlock, SavedPattern, SequencerPattern } from '@/types/audio.types'
+import { TIMELINE_TRACK_COLORS } from '@/types/audio.types'
 
 interface TimelineContextValue {
   // Timeline state
@@ -11,11 +12,18 @@ interface TimelineContextValue {
   savePattern: (pattern: SequencerPattern, name?: string) => SavedPattern
   deletePattern: (patternId: string) => void
 
-  // Timeline manipulation
-  addBlock: (patternId: string, startMeasure: number, lengthMeasures?: number) => void
-  removeBlock: (blockId: string) => void
-  moveBlock: (blockId: string, newStartMeasure: number) => void
-  resizeBlock: (blockId: string, newLength: number) => void
+  // Track management
+  addTrack: (name?: string) => TimelineTrack
+  removeTrack: (trackId: string) => void
+  updateTrack: (trackId: string, updates: Partial<Omit<TimelineTrack, 'id' | 'blocks'>>) => void
+  toggleTrackMute: (trackId: string) => void
+  setTrackVolume: (trackId: string, volume: number) => void
+
+  // Block management (within tracks)
+  addBlock: (trackId: string, patternId: string, startMeasure: number, lengthMeasures?: number) => void
+  removeBlock: (trackId: string, blockId: string) => void
+  moveBlock: (trackId: string, blockId: string, newStartMeasure: number) => void
+  resizeBlock: (trackId: string, blockId: string, newLength: number) => void
 
   // Playback state
   currentMeasure: number
@@ -23,6 +31,8 @@ interface TimelineContextValue {
   toggleTimelinePlayback: () => void
 
   // Selection
+  selectedTrackId: string | null
+  setSelectedTrackId: (trackId: string | null) => void
   selectedMeasure: number | null
   setSelectedMeasure: (measure: number | null) => void
   selectedBlock: TimelineBlock | null
@@ -40,12 +50,12 @@ function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
 
-// Default empty timeline
+// Default empty timeline with track-based model
 const DEFAULT_TIMELINE: Timeline = {
   id: 'default',
   name: 'My Track',
   bpm: 120,
-  blocks: [],
+  tracks: [],
 }
 
 // Check if localStorage is available
@@ -68,7 +78,18 @@ function loadTimelineFromStorage(): Timeline {
   try {
     const stored = localStorage.getItem(TIMELINE_STORAGE_KEY)
     if (!stored) return DEFAULT_TIMELINE
-    return JSON.parse(stored) as Timeline
+    const parsed = JSON.parse(stored) as Timeline
+    // Migration: if old format with blocks array, convert to tracks
+    if ('blocks' in parsed && !('tracks' in parsed)) {
+      const oldFormat = parsed as unknown as { id: string; name: string; bpm: number }
+      return {
+        id: oldFormat.id,
+        name: oldFormat.name,
+        bpm: oldFormat.bpm,
+        tracks: [],
+      }
+    }
+    return parsed
   } catch {
     return DEFAULT_TIMELINE
   }
@@ -113,6 +134,7 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const [savedPatterns, setSavedPatterns] = useState<SavedPattern[]>(loadPatternsFromStorage)
   const [currentMeasure, setCurrentMeasure] = useState(0)
   const [isTimelinePlaying, setIsTimelinePlaying] = useState(false)
+  const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null)
   const [selectedMeasure, setSelectedMeasure] = useState<number | null>(null)
   const [selectedBlock, setSelectedBlock] = useState<TimelineBlock | null>(null)
 
@@ -186,15 +208,77 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   // Delete a pattern from the library
   const deletePattern = useCallback((patternId: string) => {
     setSavedPatterns(prev => prev.filter(p => p.id !== patternId))
-    // Also remove any blocks using this pattern
+    // Also remove any blocks using this pattern from all tracks
     setTimeline(prev => ({
       ...prev,
-      blocks: prev.blocks.filter(b => b.patternId !== patternId),
+      tracks: prev.tracks.map(track => ({
+        ...track,
+        blocks: track.blocks.filter(b => b.patternId !== patternId),
+      })),
     }))
   }, [])
 
-  // Add a block to the timeline
-  const addBlock = useCallback((patternId: string, startMeasure: number, lengthMeasures = 1) => {
+  // Add a new track
+  const addTrack = useCallback((name?: string): TimelineTrack => {
+    const trackCount = timeline.tracks.length
+    const newTrack: TimelineTrack = {
+      id: generateId(),
+      name: name || `Track ${trackCount + 1}`,
+      color: TIMELINE_TRACK_COLORS[trackCount % TIMELINE_TRACK_COLORS.length],
+      muted: false,
+      volume: 1,
+      blocks: [],
+    }
+    setTimeline(prev => ({
+      ...prev,
+      tracks: [...prev.tracks, newTrack],
+    }))
+    return newTrack
+  }, [timeline.tracks.length])
+
+  // Remove a track
+  const removeTrack = useCallback((trackId: string) => {
+    setTimeline(prev => ({
+      ...prev,
+      tracks: prev.tracks.filter(t => t.id !== trackId),
+    }))
+    if (selectedTrackId === trackId) {
+      setSelectedTrackId(null)
+    }
+  }, [selectedTrackId])
+
+  // Update track properties
+  const updateTrack = useCallback((trackId: string, updates: Partial<Omit<TimelineTrack, 'id' | 'blocks'>>) => {
+    setTimeline(prev => ({
+      ...prev,
+      tracks: prev.tracks.map(t =>
+        t.id === trackId ? { ...t, ...updates } : t
+      ),
+    }))
+  }, [])
+
+  // Toggle track mute
+  const toggleTrackMute = useCallback((trackId: string) => {
+    setTimeline(prev => ({
+      ...prev,
+      tracks: prev.tracks.map(t =>
+        t.id === trackId ? { ...t, muted: !t.muted } : t
+      ),
+    }))
+  }, [])
+
+  // Set track volume
+  const setTrackVolume = useCallback((trackId: string, volume: number) => {
+    setTimeline(prev => ({
+      ...prev,
+      tracks: prev.tracks.map(t =>
+        t.id === trackId ? { ...t, volume: Math.max(0, Math.min(1, volume)) } : t
+      ),
+    }))
+  }, [])
+
+  // Add a block to a specific track
+  const addBlock = useCallback((trackId: string, patternId: string, startMeasure: number, lengthMeasures = 1) => {
     const newBlock: TimelineBlock = {
       id: generateId(),
       patternId,
@@ -203,37 +287,55 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
     }
     setTimeline(prev => ({
       ...prev,
-      blocks: [...prev.blocks, newBlock],
+      tracks: prev.tracks.map(t =>
+        t.id === trackId ? { ...t, blocks: [...t.blocks, newBlock] } : t
+      ),
     }))
   }, [])
 
-  // Remove a block from the timeline
-  const removeBlock = useCallback((blockId: string) => {
+  // Remove a block from a track
+  const removeBlock = useCallback((trackId: string, blockId: string) => {
     setTimeline(prev => ({
       ...prev,
-      blocks: prev.blocks.filter(b => b.id !== blockId),
+      tracks: prev.tracks.map(t =>
+        t.id === trackId ? { ...t, blocks: t.blocks.filter(b => b.id !== blockId) } : t
+      ),
     }))
     if (selectedBlock?.id === blockId) {
       setSelectedBlock(null)
     }
   }, [selectedBlock])
 
-  // Move a block to a new position
-  const moveBlock = useCallback((blockId: string, newStartMeasure: number) => {
+  // Move a block within a track
+  const moveBlock = useCallback((trackId: string, blockId: string, newStartMeasure: number) => {
     setTimeline(prev => ({
       ...prev,
-      blocks: prev.blocks.map(b =>
-        b.id === blockId ? { ...b, startMeasure: Math.max(0, newStartMeasure) } : b
+      tracks: prev.tracks.map(t =>
+        t.id === trackId
+          ? {
+              ...t,
+              blocks: t.blocks.map(b =>
+                b.id === blockId ? { ...b, startMeasure: Math.max(0, newStartMeasure) } : b
+              ),
+            }
+          : t
       ),
     }))
   }, [])
 
   // Resize a block
-  const resizeBlock = useCallback((blockId: string, newLength: number) => {
+  const resizeBlock = useCallback((trackId: string, blockId: string, newLength: number) => {
     setTimeline(prev => ({
       ...prev,
-      blocks: prev.blocks.map(b =>
-        b.id === blockId ? { ...b, lengthMeasures: Math.max(1, newLength) } : b
+      tracks: prev.tracks.map(t =>
+        t.id === trackId
+          ? {
+              ...t,
+              blocks: t.blocks.map(b =>
+                b.id === blockId ? { ...b, lengthMeasures: Math.max(1, newLength) } : b
+              ),
+            }
+          : t
       ),
     }))
   }, [])
@@ -254,6 +356,11 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
         savedPatterns,
         savePattern,
         deletePattern,
+        addTrack,
+        removeTrack,
+        updateTrack,
+        toggleTrackMute,
+        setTrackVolume,
         addBlock,
         removeBlock,
         moveBlock,
@@ -261,6 +368,8 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
         currentMeasure,
         isTimelinePlaying,
         toggleTimelinePlayback,
+        selectedTrackId,
+        setSelectedTrackId,
         selectedMeasure,
         setSelectedMeasure,
         selectedBlock,
