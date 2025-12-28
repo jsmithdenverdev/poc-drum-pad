@@ -9,7 +9,6 @@ import { SequencerConfig } from '@/components/molecules/SequencerConfig'
 import { SynthConfig } from '@/components/molecules/SynthConfig'
 import { PatternSelector } from '@/components/molecules/PatternSelector'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
 import {
   Sheet,
   SheetContent,
@@ -57,12 +56,10 @@ function AppContent() {
     setBpm,
     toggleTrackVisibility,
     setTrackVolume,
-    showSequencer,
-    setShowSequencer,
-    selectedStep,
+    selectedSteps,
     showSettings,
     setShowSettings,
-    toggleSoundOnStep,
+    toggleSoundOnSteps,
     clearPattern,
     handleStepSelect,
     handleStepCountChange,
@@ -88,32 +85,33 @@ function AppContent() {
   // Handle drum trigger
   const handleDrumTrigger = useCallback((soundId: string) => {
     play(soundId)
-    if (showSequencer && selectedStep !== null && !isPlaying) {
-      toggleSoundOnStep(soundId, selectedStep, 'drum')
+    if (selectedSteps.size > 0 && !isPlaying) {
+      toggleSoundOnSteps(soundId, [...selectedSteps], 'drum')
     }
-  }, [play, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
+  }, [play, selectedSteps, isPlaying, toggleSoundOnSteps])
 
   // Handle synth note on
   const handleNoteOn = useCallback((noteId: string) => {
     noteOn(noteId)
-    if (showSequencer && selectedStep !== null && !isPlaying) {
-      toggleSoundOnStep(noteId, selectedStep, 'synth')
+    if (selectedSteps.size > 0 && !isPlaying) {
+      toggleSoundOnSteps(noteId, [...selectedSteps], 'synth')
     }
-  }, [noteOn, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
+  }, [noteOn, selectedSteps, isPlaying, toggleSoundOnSteps])
 
   // Handle synth note off
   const handleNoteOff = useCallback((noteId: string) => {
     noteOff(noteId)
   }, [noteOff])
 
-  // Handle copy/paste
+  // Handle copy/paste (copy from first selected, paste to all selected)
   const handleCopy = useCallback(() => {
-    if (selectedStep !== null) copyStep(selectedStep)
-  }, [selectedStep, copyStep])
+    const firstStep = [...selectedSteps][0]
+    if (firstStep !== undefined) copyStep(firstStep)
+  }, [selectedSteps, copyStep])
 
   const handlePaste = useCallback(() => {
-    if (selectedStep !== null) pasteStep(selectedStep)
-  }, [selectedStep, pasteStep])
+    selectedSteps.forEach(step => pasteStep(step))
+  }, [selectedSteps, pasteStep])
 
   // Keyboard shortcuts (only active on drum page)
   useKeyboardShortcuts({
@@ -159,12 +157,14 @@ function AppContent() {
   if (needsInit) {
     return (
       <LandscapeLayout>
-        <div className="flex flex-col items-center justify-center gap-6 p-8 text-center">
-          <h1 className="text-3xl font-bold">Drum Pad & Synth</h1>
-          <p className="text-muted-foreground max-w-md">
-            Tap the button below to start. Audio requires user interaction on mobile devices.
-          </p>
-          <Button size="lg" onClick={handleInit} className="gap-2">
+        <div className="flex flex-col items-center justify-center gap-8 p-8 text-center">
+          <div className="space-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight">Drum Pad & Synth</h1>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Tap to start. Audio requires user interaction on mobile devices.
+            </p>
+          </div>
+          <Button size="lg" onClick={handleInit} className="gap-2 shadow-lg shadow-primary/20">
             <Volume2 className="w-5 h-5" />
             Start Audio
           </Button>
@@ -245,7 +245,7 @@ function AppContent() {
         }}
       >
         {/* Header - static */}
-        <header className="flex-shrink-0 px-4 py-2 border-b border-border">
+        <header className="flex-shrink-0 px-4 py-3 border-b border-border/50 bg-secondary/30">
           <div className="flex items-center justify-between">
             {/* Left side - Menu button and title */}
             <div className="flex items-center gap-3">
@@ -253,44 +253,27 @@ function AppContent() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowSettings(!showSettings)}
-                className={cn(showSettings && 'bg-secondary')}
+                className={cn(
+                  'rounded-lg transition-colors',
+                  showSettings && 'bg-primary/20 text-primary'
+                )}
               >
                 <Menu className="w-5 h-5" />
               </Button>
-              <h1 className="text-xl font-bold">{instrumentNames[currentPage]}</h1>
+              <h1 className="text-lg font-semibold tracking-tight">{instrumentNames[currentPage]}</h1>
             </div>
 
             {/* Right side - Controls */}
-            <div className="flex items-center gap-3">
-              {/* Sequencer toggle */}
-              <div className="flex items-center gap-2">
-                <label
-                  htmlFor="sequencer-toggle"
-                  className="text-sm text-muted-foreground hidden sm:inline"
-                >
-                  Seq
-                </label>
-                <Switch
-                  id="sequencer-toggle"
-                  checked={showSequencer}
-                  onCheckedChange={setShowSequencer}
-                />
-              </div>
-
-              {/* Play button - always rendered but hidden when sequencer is off */}
-              <div className={cn(!showSequencer && 'invisible')}>
-                <PlayButton isPlaying={isPlaying} onToggle={toggle} />
-              </div>
-
-              {/* Clear button - always rendered but hidden when sequencer is off */}
+            <div className="flex items-center gap-2">
+              <PlayButton isPlaying={isPlaying} onToggle={toggle} />
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={clearPattern}
                 title="Clear pattern"
-                className={cn(!showSequencer && 'invisible')}
+                className="rounded-lg text-muted-foreground hover:text-foreground"
               >
-                <Trash2 className="w-5 h-5" />
+                <Trash2 className="w-4 h-4" />
               </Button>
             </div>
           </div>
@@ -308,18 +291,16 @@ function AppContent() {
 
             <div className="space-y-6">
               {/* Patterns Section */}
-              {showSequencer && (
-                <section className="space-y-3">
-                  <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2">
-                    Patterns
-                  </h3>
-                  <PatternSelector
-                    patterns={PRESET_PATTERNS}
-                    currentPatternId={pattern.id}
-                    onSelectPattern={loadPattern}
-                  />
-                </section>
-              )}
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2">
+                  Patterns
+                </h3>
+                <PatternSelector
+                  patterns={PRESET_PATTERNS}
+                  currentPatternId={pattern.id}
+                  onSelectPattern={loadPattern}
+                />
+              </section>
 
               {/* Sequencer Section */}
               <section className="space-y-3">
@@ -359,20 +340,18 @@ function AppContent() {
         </Sheet>
 
         {/* Sequencer - static above instruments */}
-        {showSequencer && (
-          <div className="flex-shrink-0 py-3 border-b border-border">
-            <StepSequencer
-              pattern={pattern}
-              sounds={ALL_SOUNDS_FOR_DISPLAY}
-              selectedStep={selectedStep}
-              currentStep={currentStep}
-              isPlaying={isPlaying}
-              stepCount={stepCount}
-              hiddenTracks={hiddenTracks}
-              onStepSelect={handleStepSelect}
-            />
-          </div>
-        )}
+        <div className="flex-shrink-0 py-4 border-b border-border/50 bg-secondary/20">
+          <StepSequencer
+            pattern={pattern}
+            sounds={ALL_SOUNDS_FOR_DISPLAY}
+            selectedSteps={selectedSteps}
+            currentStep={currentStep}
+            isPlaying={isPlaying}
+            stepCount={stepCount}
+            hiddenTracks={hiddenTracks}
+            onStepSelect={handleStepSelect}
+          />
+        </div>
 
         {/* Swipeable instrument area */}
         <div
@@ -401,15 +380,15 @@ function AppContent() {
           </div>
 
           {/* Page indicator dots */}
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-10 bg-secondary/60 backdrop-blur-sm rounded-full px-3 py-1.5">
             {[0, 1].map(index => (
               <button
                 key={index}
                 className={cn(
-                  'w-2 h-2 rounded-full transition-all',
+                  'h-1.5 rounded-full transition-all duration-200',
                   currentPage === index
-                    ? 'bg-primary w-4'
-                    : 'bg-muted-foreground/30 hover:bg-muted-foreground/50',
+                    ? 'bg-primary w-5'
+                    : 'bg-muted-foreground/40 w-1.5 hover:bg-muted-foreground/60',
                 )}
                 onClick={() => setCurrentPage(index)}
                 aria-label={instrumentNames[index]}

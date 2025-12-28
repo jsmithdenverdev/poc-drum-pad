@@ -32,10 +32,10 @@ export function DrumPadPage({ onNavigate: _onNavigate }: DrumPadPageProps) {
     setTrackVolume,
     showSequencer,
     setShowSequencer,
-    selectedStep,
+    selectedSteps,
     showSettings,
     setShowSettings,
-    toggleSoundOnStep,
+    toggleSoundOnSteps,
     clearPattern,
     handleStepSelect,
     handleStepCountChange,
@@ -59,23 +59,22 @@ export function DrumPadPage({ onNavigate: _onNavigate }: DrumPadPageProps) {
     // Always play the sound
     play(soundId)
 
-    // Only add to sequence if: sequencer visible, step selected, and NOT playing
-    if (showSequencer && selectedStep !== null && !isPlaying) {
-      toggleSoundOnStep(soundId, selectedStep, 'drum')
+    // Only add to sequence if: sequencer visible, steps selected, and NOT playing
+    if (showSequencer && selectedSteps.size > 0 && !isPlaying) {
+      toggleSoundOnSteps(soundId, [...selectedSteps], 'drum')
     }
-  }, [play, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
+  }, [play, showSequencer, selectedSteps, isPlaying, toggleSoundOnSteps])
 
   const handleCopy = useCallback(() => {
-    if (selectedStep !== null) {
-      copyStep(selectedStep)
+    const firstStep = [...selectedSteps][0]
+    if (firstStep !== undefined) {
+      copyStep(firstStep)
     }
-  }, [selectedStep, copyStep])
+  }, [selectedSteps, copyStep])
 
   const handlePaste = useCallback(() => {
-    if (selectedStep !== null) {
-      pasteStep(selectedStep)
-    }
-  }, [selectedStep, pasteStep])
+    selectedSteps.forEach(step => pasteStep(step))
+  }, [selectedSteps, pasteStep])
 
   // Enable keyboard shortcuts for drum pads, undo/redo, and copy/paste
   useKeyboardShortcuts({
@@ -178,7 +177,7 @@ export function DrumPadPage({ onNavigate: _onNavigate }: DrumPadPageProps) {
           <StepSequencer
             pattern={pattern}
             sounds={ALL_SOUNDS_FOR_DISPLAY}
-            selectedStep={selectedStep}
+            selectedSteps={selectedSteps}
             currentStep={currentStep}
             isPlaying={isPlaying}
             stepCount={stepCount}

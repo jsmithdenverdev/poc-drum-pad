@@ -41,10 +41,10 @@ export function SynthPage({ onNavigate: _onNavigate }: SynthPageProps) {
     setTrackVolume,
     showSequencer,
     setShowSequencer,
-    selectedStep,
+    selectedSteps,
     showSettings,
     setShowSettings,
-    toggleSoundOnStep,
+    toggleSoundOnSteps,
     clearPattern,
     handleStepSelect,
     handleStepCountChange,
@@ -63,11 +63,11 @@ export function SynthPage({ onNavigate: _onNavigate }: SynthPageProps) {
     // Start sustained note
     noteOn(noteId)
 
-    // Only add to sequence if: sequencer visible, step selected, and NOT playing
-    if (showSequencer && selectedStep !== null && !isPlaying) {
-      toggleSoundOnStep(noteId, selectedStep, 'synth')
+    // Only add to sequence if: sequencer visible, steps selected, and NOT playing
+    if (showSequencer && selectedSteps.size > 0 && !isPlaying) {
+      toggleSoundOnSteps(noteId, [...selectedSteps], 'synth')
     }
-  }, [noteOn, showSequencer, selectedStep, isPlaying, toggleSoundOnStep])
+  }, [noteOn, showSequencer, selectedSteps, isPlaying, toggleSoundOnSteps])
 
   const handleNoteOff = useCallback((noteId: string) => {
     // Stop sustained note
@@ -163,7 +163,7 @@ export function SynthPage({ onNavigate: _onNavigate }: SynthPageProps) {
           <StepSequencer
             pattern={pattern}
             sounds={ALL_SOUNDS_FOR_DISPLAY}
-            selectedStep={selectedStep}
+            selectedSteps={selectedSteps}
             currentStep={currentStep}
             isPlaying={isPlaying}
             stepCount={stepCount}

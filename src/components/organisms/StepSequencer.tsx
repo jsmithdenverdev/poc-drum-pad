@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 interface StepSequencerProps {
   pattern: SequencerPattern
   sounds: SoundDisplay[]
-  selectedStep: number | null
+  selectedSteps: Set<number>
   currentStep: number
   isPlaying: boolean
   stepCount: StepCount
@@ -18,7 +18,7 @@ interface StepSequencerProps {
 export function StepSequencer({
   pattern,
   sounds,
-  selectedStep,
+  selectedSteps,
   currentStep,
   isPlaying,
   stepCount,
@@ -66,7 +66,7 @@ export function StepSequencer({
           <StepButton
             key={stepIndex}
             stepIndex={stepIndex}
-            isSelected={selectedStep === stepIndex}
+            isSelected={selectedSteps.has(stepIndex)}
             isCurrentStep={isPlaying && currentStep === stepIndex}
             activeSoundColors={stepColors[stepIndex]}
             onSelect={() => onStepSelect(stepIndex)}
