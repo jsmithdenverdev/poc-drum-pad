@@ -331,6 +331,7 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
 
   // Save a pattern to the library
   const savePattern = useCallback((pattern: SequencerPattern, name?: string): SavedPattern => {
+    console.log('Saving pattern:', pattern.name, 'with', pattern.tracks.length, 'tracks')
     const now = Date.now()
     const savedPattern: SavedPattern = {
       ...pattern,
@@ -339,7 +340,10 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
       createdAt: now,
       updatedAt: now,
     }
-    setSavedPatterns(prev => [...prev, savedPattern])
+    setSavedPatterns(prev => {
+      console.log('Patterns before:', prev.length, 'after:', prev.length + 1)
+      return [...prev, savedPattern]
+    })
     return savedPattern
   }, [savedPatterns.length])
 

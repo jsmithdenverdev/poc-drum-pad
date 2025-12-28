@@ -19,7 +19,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 import { PlayButton } from '@/components/atoms/PlayButton'
-import { Volume2, AlertTriangle, RefreshCw, Menu, Trash2, Save } from 'lucide-react'
+import { Volume2, AlertTriangle, RefreshCw, Menu, Trash2, Save, Check } from 'lucide-react'
 import { AudioProvider, SequencerProvider, useAudio, useSequencerContext, TimelineProvider, useTimelineContext } from '@/contexts'
 import type { TimelineBlock, SavedPattern } from '@/types/audio.types'
 import { SWIPE_THRESHOLD, DRUM_SOUNDS, ALL_SOUNDS_FOR_DISPLAY } from '@/constants'
@@ -100,6 +100,7 @@ function AppContent() {
     trackId: string
     measure: number
   } | null>(null)
+  const [justSaved, setJustSaved] = useState(false)
 
   // Swipe tracking for instruments
   const instrumentTouchStartX = useRef<number | null>(null)
@@ -224,6 +225,8 @@ function AppContent() {
   // Save current pattern to library
   const handleSavePattern = useCallback(() => {
     savePattern(pattern)
+    setJustSaved(true)
+    setTimeout(() => setJustSaved(false), 1500)
   }, [savePattern, pattern])
 
   // Timeline handlers
@@ -402,9 +405,14 @@ function AppContent() {
                 size="icon"
                 onClick={handleSavePattern}
                 title="Save pattern to library"
-                className="rounded-lg text-muted-foreground hover:text-foreground"
+                className={cn(
+                  'rounded-lg transition-colors',
+                  justSaved
+                    ? 'text-green-500 bg-green-500/10'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
               >
-                <Save className="w-4 h-4" />
+                {justSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
               </Button>
               <Button
                 variant="ghost"
