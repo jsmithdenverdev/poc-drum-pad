@@ -196,10 +196,10 @@ export function TimelineBlock({
             e.stopPropagation()
             onDelete()
           }}
-          className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors shadow-sm"
+          className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors shadow-md z-10"
           aria-label={`Delete ${patternName} block`}
         >
-          <X className="h-2.5 w-2.5" />
+          <X className="h-3.5 w-3.5" />
         </button>
       )}
     </div>

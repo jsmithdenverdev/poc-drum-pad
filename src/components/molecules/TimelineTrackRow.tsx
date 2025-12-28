@@ -79,7 +79,7 @@ export function TimelineTrackRow({
       </div>
 
       {/* Blocks layer - absolutely positioned on top */}
-      <div className="absolute inset-0 pointer-events-none">
+      <div className="absolute inset-0 pointer-events-none overflow-visible">
         {track.blocks.map((block) => {
           const patternName = getPatternName(block.patternId)
           const isSelected = block.id === selectedBlockId
@@ -89,7 +89,7 @@ export function TimelineTrackRow({
           return (
             <div
               key={block.id}
-              className="absolute pointer-events-auto"
+              className="absolute pointer-events-auto overflow-visible"
               style={{
                 left: `${left}px`,
                 width: `${width}px`,
