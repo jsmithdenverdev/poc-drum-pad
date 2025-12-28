@@ -155,9 +155,22 @@ function AppContent() {
     enabled: true,
   })
 
-  // Handle instrument touch start
+  // Handle instrument touch start - only register swipes from edges
   const handleInstrumentTouchStart = useCallback((e: React.TouchEvent) => {
-    instrumentTouchStartX.current = e.touches[0].clientX
+    const target = e.currentTarget as HTMLElement
+    const rect = target.getBoundingClientRect()
+    const touchX = e.touches[0].clientX
+    const edgeThreshold = 50 // pixels from edge to trigger swipe
+
+    // Only register if touch starts near left or right edge
+    const isNearLeftEdge = touchX - rect.left < edgeThreshold
+    const isNearRightEdge = rect.right - touchX < edgeThreshold
+
+    if (isNearLeftEdge || isNearRightEdge) {
+      instrumentTouchStartX.current = touchX
+    } else {
+      instrumentTouchStartX.current = null
+    }
   }, [])
 
   // Handle instrument touch end
@@ -178,9 +191,22 @@ function AppContent() {
     instrumentTouchStartX.current = null
   }, [currentInstrumentPage])
 
-  // Handle sequencer/timeline touch start
+  // Handle sequencer/timeline touch start - only register swipes from edges
   const handleSequencerTouchStart = useCallback((e: React.TouchEvent) => {
-    sequencerTouchStartX.current = e.touches[0].clientX
+    const target = e.currentTarget as HTMLElement
+    const rect = target.getBoundingClientRect()
+    const touchX = e.touches[0].clientX
+    const edgeThreshold = 50 // pixels from edge to trigger swipe
+
+    // Only register if touch starts near left or right edge
+    const isNearLeftEdge = touchX - rect.left < edgeThreshold
+    const isNearRightEdge = rect.right - touchX < edgeThreshold
+
+    if (isNearLeftEdge || isNearRightEdge) {
+      sequencerTouchStartX.current = touchX
+    } else {
+      sequencerTouchStartX.current = null
+    }
   }, [])
 
   // Handle sequencer/timeline touch end
