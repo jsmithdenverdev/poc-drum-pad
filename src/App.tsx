@@ -155,22 +155,9 @@ function AppContent() {
     enabled: true,
   })
 
-  // Handle instrument touch start - only register swipes from edges
+  // Handle instrument touch start
   const handleInstrumentTouchStart = useCallback((e: React.TouchEvent) => {
-    const target = e.currentTarget as HTMLElement
-    const rect = target.getBoundingClientRect()
-    const touchX = e.touches[0].clientX
-    const edgeThreshold = 50 // pixels from edge to trigger swipe
-
-    // Only register if touch starts near left or right edge
-    const isNearLeftEdge = touchX - rect.left < edgeThreshold
-    const isNearRightEdge = rect.right - touchX < edgeThreshold
-
-    if (isNearLeftEdge || isNearRightEdge) {
-      instrumentTouchStartX.current = touchX
-    } else {
-      instrumentTouchStartX.current = null
-    }
+    instrumentTouchStartX.current = e.touches[0].clientX
   }, [])
 
   // Handle instrument touch end
@@ -191,23 +178,29 @@ function AppContent() {
     instrumentTouchStartX.current = null
   }, [currentInstrumentPage])
 
-  // Handle sequencer/timeline touch start - only register swipes from edges
+  // Handle sequencer/timeline touch start - edge-only for timeline (has internal scroll)
   const handleSequencerTouchStart = useCallback((e: React.TouchEvent) => {
-    const target = e.currentTarget as HTMLElement
-    const rect = target.getBoundingClientRect()
     const touchX = e.touches[0].clientX
-    const edgeThreshold = 50 // pixels from edge to trigger swipe
 
-    // Only register if touch starts near left or right edge
-    const isNearLeftEdge = touchX - rect.left < edgeThreshold
-    const isNearRightEdge = rect.right - touchX < edgeThreshold
+    // Timeline has internal scrolling, so only allow swipe from edges
+    if (currentSequencerPage === 1) {
+      const target = e.currentTarget as HTMLElement
+      const rect = target.getBoundingClientRect()
+      const edgeThreshold = 50 // pixels from edge to trigger swipe
 
-    if (isNearLeftEdge || isNearRightEdge) {
-      sequencerTouchStartX.current = touchX
+      const isNearLeftEdge = touchX - rect.left < edgeThreshold
+      const isNearRightEdge = rect.right - touchX < edgeThreshold
+
+      if (isNearLeftEdge || isNearRightEdge) {
+        sequencerTouchStartX.current = touchX
+      } else {
+        sequencerTouchStartX.current = null
+      }
     } else {
-      sequencerTouchStartX.current = null
+      // Sequencer allows swipe from anywhere
+      sequencerTouchStartX.current = touchX
     }
-  }, [])
+  }, [currentSequencerPage])
 
   // Handle sequencer/timeline touch end
   const handleSequencerTouchEnd = useCallback((e: React.TouchEvent) => {
