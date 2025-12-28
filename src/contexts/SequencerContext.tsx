@@ -29,15 +29,16 @@ interface SequencerContextValue {
   // UI state
   showSequencer: boolean
   setShowSequencer: (show: boolean) => void
-  selectedStep: number | null
-  setSelectedStep: (step: number | null) => void
+  selectedSteps: Set<number>
+  setSelectedSteps: (steps: Set<number>) => void
   showSettings: boolean
   setShowSettings: (show: boolean) => void
 
   // Pattern manipulation
-  toggleSoundOnStep: (soundId: string, stepIndex: number, soundType: SoundType) => void
+  toggleSoundOnSteps: (soundId: string, stepIndices: number[], soundType: SoundType) => void
   clearPattern: () => void
   handleStepSelect: (stepIndex: number) => void
+  clearSelection: () => void
   handleStepCountChange: (newCount: StepCount) => void
   loadPattern: (patternId: string) => void
 
@@ -140,7 +141,7 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
   const initialPattern = loadPatternFromStorage(DEFAULT_PATTERN)
   const { pattern, setPattern, undo, redo, canUndo, canRedo } = usePatternHistory(initialPattern)
   const [showSequencer, setShowSequencer] = useState(true)
-  const [selectedStep, setSelectedStep] = useState<number | null>(null)
+  const [selectedSteps, setSelectedSteps] = useState<Set<number>>(new Set())
   const [showSettings, setShowSettings] = useState(false)
   const [clipboard, setClipboard] = useState<StepClipboard | null>(null)
   const saveTimeoutRef = useRef<number | null>(null)
@@ -180,15 +181,31 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
     toggleTrackVisibility,
   } = useSequencer(pattern)
 
-  // Handle step selection
+  // Handle step selection (toggle in set)
   const handleStepSelect = useCallback((stepIndex: number) => {
-    setSelectedStep(prev => prev === stepIndex ? null : stepIndex)
+    setSelectedSteps(prev => {
+      const next = new Set(prev)
+      if (next.has(stepIndex)) {
+        next.delete(stepIndex)
+      } else {
+        next.add(stepIndex)
+      }
+      return next
+    })
   }, [])
 
-  // Toggle sound on step (with sound type)
-  const toggleSoundOnStep = useCallback((soundId: string, stepIndex: number, soundType: SoundType) => {
+  // Clear all selected steps
+  const clearSelection = useCallback(() => {
+    setSelectedSteps(new Set())
+  }, [])
+
+  // Toggle sound on multiple steps (with sound type)
+  const toggleSoundOnSteps = useCallback((soundId: string, stepIndices: number[], soundType: SoundType) => {
+    if (stepIndices.length === 0) return
+
     setPattern(prev => {
       const trackIndex = prev.tracks.findIndex(t => t.soundId === soundId)
+      const stepSet = new Set(stepIndices)
 
       if (trackIndex >= 0) {
         return {
@@ -198,7 +215,7 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
             return {
               ...track,
               steps: track.steps.map((step, sIdx) => {
-                if (sIdx !== stepIndex) return step
+                if (!stepSet.has(sIdx)) return step
                 return { ...step, active: !step.active }
               }),
             }
@@ -209,7 +226,7 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
           soundId,
           soundType,
           steps: Array(MAX_STEPS).fill(null).map((_, sIdx) => ({
-            active: sIdx === stepIndex
+            active: stepSet.has(sIdx)
           })),
         }
         return {
@@ -233,11 +250,12 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
         return { ...track, steps: [...track.steps, ...newSteps] }
       }),
     }))
-    // Clear selected step if it's beyond new count
-    if (selectedStep !== null && selectedStep >= newCount) {
-      setSelectedStep(null)
-    }
-  }, [setStepCount, selectedStep, setPattern])
+    // Clear selected steps that are beyond new count
+    setSelectedSteps(prev => {
+      const filtered = new Set([...prev].filter(step => step < newCount))
+      return filtered.size === prev.size ? prev : filtered
+    })
+  }, [setStepCount, setPattern])
 
   // Clear all tracks
   const clearPattern = useCallback(() => {
@@ -350,13 +368,14 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
         setTrackVolume,
         showSequencer,
         setShowSequencer,
-        selectedStep,
-        setSelectedStep,
+        selectedSteps,
+        setSelectedSteps,
         showSettings,
         setShowSettings,
-        toggleSoundOnStep,
+        toggleSoundOnSteps,
         clearPattern,
         handleStepSelect,
+        clearSelection,
         handleStepCountChange,
         loadPattern,
         clipboard,

@@ -56,10 +56,10 @@ function AppContent() {
     setBpm,
     toggleTrackVisibility,
     setTrackVolume,
-    selectedStep,
+    selectedSteps,
     showSettings,
     setShowSettings,
-    toggleSoundOnStep,
+    toggleSoundOnSteps,
     clearPattern,
     handleStepSelect,
     handleStepCountChange,
@@ -85,32 +85,33 @@ function AppContent() {
   // Handle drum trigger
   const handleDrumTrigger = useCallback((soundId: string) => {
     play(soundId)
-    if (selectedStep !== null && !isPlaying) {
-      toggleSoundOnStep(soundId, selectedStep, 'drum')
+    if (selectedSteps.size > 0 && !isPlaying) {
+      toggleSoundOnSteps(soundId, [...selectedSteps], 'drum')
     }
-  }, [play, selectedStep, isPlaying, toggleSoundOnStep])
+  }, [play, selectedSteps, isPlaying, toggleSoundOnSteps])
 
   // Handle synth note on
   const handleNoteOn = useCallback((noteId: string) => {
     noteOn(noteId)
-    if (selectedStep !== null && !isPlaying) {
-      toggleSoundOnStep(noteId, selectedStep, 'synth')
+    if (selectedSteps.size > 0 && !isPlaying) {
+      toggleSoundOnSteps(noteId, [...selectedSteps], 'synth')
     }
-  }, [noteOn, selectedStep, isPlaying, toggleSoundOnStep])
+  }, [noteOn, selectedSteps, isPlaying, toggleSoundOnSteps])
 
   // Handle synth note off
   const handleNoteOff = useCallback((noteId: string) => {
     noteOff(noteId)
   }, [noteOff])
 
-  // Handle copy/paste
+  // Handle copy/paste (copy from first selected, paste to all selected)
   const handleCopy = useCallback(() => {
-    if (selectedStep !== null) copyStep(selectedStep)
-  }, [selectedStep, copyStep])
+    const firstStep = [...selectedSteps][0]
+    if (firstStep !== undefined) copyStep(firstStep)
+  }, [selectedSteps, copyStep])
 
   const handlePaste = useCallback(() => {
-    if (selectedStep !== null) pasteStep(selectedStep)
-  }, [selectedStep, pasteStep])
+    selectedSteps.forEach(step => pasteStep(step))
+  }, [selectedSteps, pasteStep])
 
   // Keyboard shortcuts (only active on drum page)
   useKeyboardShortcuts({
@@ -343,7 +344,7 @@ function AppContent() {
           <StepSequencer
             pattern={pattern}
             sounds={ALL_SOUNDS_FOR_DISPLAY}
-            selectedStep={selectedStep}
+            selectedSteps={selectedSteps}
             currentStep={currentStep}
             isPlaying={isPlaying}
             stepCount={stepCount}
