@@ -91,6 +91,7 @@ function AppContent() {
     removeBlock,
     moveBlock,
     resizeBlock,
+    toggleTimelinePlayback,
   } = useTimelineContext()
 
   // Pattern picker modal state
@@ -392,7 +393,10 @@ function AppContent() {
 
             {/* Right side - Controls */}
             <div className="flex items-center gap-2">
-              <PlayButton isPlaying={isPlaying} onToggle={toggle} />
+              <PlayButton
+                isPlaying={currentSequencerPage === 0 ? isPlaying : isTimelinePlaying}
+                onToggle={currentSequencerPage === 0 ? toggle : toggleTimelinePlayback}
+              />
               <Button
                 variant="ghost"
                 size="icon"

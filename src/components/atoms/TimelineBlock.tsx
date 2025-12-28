@@ -46,6 +46,14 @@ export function TimelineBlock({
   }, [isSelected, onMove])
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    // Handle resize
+    if (isResizing && resizeStartX.current !== null) {
+      const deltaX = e.clientX - resizeStartX.current
+      setResizeOffset(deltaX)
+      return
+    }
+
+    // Handle drag
     if (!isDragging || dragStartX.current === null) return
 
     const deltaX = e.clientX - dragStartX.current
@@ -53,9 +61,27 @@ export function TimelineBlock({
       hasMoved.current = true
     }
     setDragOffset(deltaX)
-  }, [isDragging])
+  }, [isDragging, isResizing])
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    // Handle resize end
+    if (isResizing) {
+      ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
+      setIsResizing(false)
+
+      if (onResize) {
+        const deltaMeasures = Math.round(resizeOffset / measureWidth)
+        if (deltaMeasures !== 0) {
+          onResize(deltaMeasures)
+        }
+      }
+
+      setResizeOffset(0)
+      resizeStartX.current = null
+      return
+    }
+
+    // Handle drag end
     if (!isDragging) return
 
     ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
@@ -70,7 +96,7 @@ export function TimelineBlock({
 
     setDragOffset(0)
     dragStartX.current = null
-  }, [isDragging, dragOffset, measureWidth, onMove])
+  }, [isDragging, isResizing, dragOffset, resizeOffset, measureWidth, onMove, onResize])
 
   const handleClick = useCallback((e: React.MouseEvent) => {
     // Don't trigger click if we just finished dragging
@@ -81,50 +107,32 @@ export function TimelineBlock({
     onClick()
   }, [onClick])
 
-  // Resize handlers
+  // Resize start handler - only on resize handle, but captures on parent
   const handleResizePointerDown = useCallback((e: React.PointerEvent) => {
     if (!isSelected || !onResize) return
     e.stopPropagation()
 
     resizeStartX.current = e.clientX
     setIsResizing(true)
-    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-  }, [isSelected, onResize])
-
-  const handleResizePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!isResizing || resizeStartX.current === null) return
-
-    const deltaX = e.clientX - resizeStartX.current
-    setResizeOffset(deltaX)
-  }, [isResizing])
-
-  const handleResizePointerUp = useCallback((e: React.PointerEvent) => {
-    if (!isResizing) return
-
-    ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
-    setIsResizing(false)
-
-    if (onResize) {
-      const deltaMeasures = Math.round(resizeOffset / measureWidth)
-      if (deltaMeasures !== 0) {
-        onResize(deltaMeasures)
-      }
+    // Capture on the block element itself so move/up events are received there
+    const blockElement = (e.target as HTMLElement).closest('[data-block]') as HTMLElement
+    if (blockElement) {
+      blockElement.setPointerCapture(e.pointerId)
     }
-
-    setResizeOffset(0)
-    resizeStartX.current = null
-  }, [isResizing, resizeOffset, measureWidth, onResize])
+  }, [isSelected, onResize])
 
   const isInteracting = isDragging || isResizing
 
   return (
     <div
+      data-block
       className={cn(
         'relative h-full rounded-lg transition-all',
         'flex items-start justify-start p-1.5',
         'cursor-pointer hover:brightness-110',
         isInteracting && 'opacity-80 z-10',
         isDragging && 'cursor-grabbing',
+        isResizing && 'cursor-ew-resize',
         !isInteracting && 'duration-75',
         className
       )}
@@ -166,15 +174,12 @@ export function TimelineBlock({
       {isSelected && onResize && !isDragging && (
         <div
           className={cn(
-            'absolute right-0 inset-y-0 w-2 cursor-ew-resize',
+            'absolute right-0 inset-y-0 w-3 cursor-ew-resize',
             'flex items-center justify-center',
             'hover:bg-white/20 rounded-r-lg transition-colors',
             isResizing && 'bg-white/30'
           )}
           onPointerDown={handleResizePointerDown}
-          onPointerMove={handleResizePointerMove}
-          onPointerUp={handleResizePointerUp}
-          onPointerCancel={handleResizePointerUp}
         >
           <div className="w-0.5 h-4 bg-white/50 rounded-full" />
         </div>
