@@ -139,7 +139,7 @@ export function SequencerProvider({ children }: { children: ReactNode }) {
   // Load initial pattern from localStorage
   const initialPattern = loadPatternFromStorage(DEFAULT_PATTERN)
   const { pattern, setPattern, undo, redo, canUndo, canRedo } = usePatternHistory(initialPattern)
-  const [showSequencer, setShowSequencer] = useState(false)
+  const [showSequencer, setShowSequencer] = useState(true)
   const [selectedStep, setSelectedStep] = useState<number | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [clipboard, setClipboard] = useState<StepClipboard | null>(null)
