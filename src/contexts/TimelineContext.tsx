@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import type { Timeline, TimelineTrack, TimelineBlock, SavedPattern, SequencerPattern } from '@/types/audio.types'
 import { TIMELINE_TRACK_COLORS } from '@/types/audio.types'
+import { audioEngine } from '@/audio/audio-engine'
+import { audioContextManager } from '@/audio/audio-context-manager'
 
 interface TimelineContextValue {
   // Timeline state
@@ -147,6 +149,8 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const animationFrameRef = useRef<number | null>(null)
   const playbackStartTimeRef = useRef<number | null>(null)
   const playbackStartPositionRef = useRef<number>(0)
+  const lastScheduledStepRef = useRef<number>(-1)
+  const audioSchedulerRef = useRef<number | null>(null)
 
   // Debounced save for timeline
   useEffect(() => {
@@ -196,7 +200,13 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
 
         const elapsed = now - playbackStartTimeRef.current
         const measuresElapsed = elapsed / msPerMeasure
-        const newPosition = (playbackStartPositionRef.current + measuresElapsed) % MEASURE_COUNT
+        const rawPosition = playbackStartPositionRef.current + measuresElapsed
+        const newPosition = rawPosition % MEASURE_COUNT
+
+        // Reset audio scheduler on loop
+        if (Math.floor(rawPosition / MEASURE_COUNT) > Math.floor((rawPosition - measuresElapsed) / MEASURE_COUNT)) {
+          lastScheduledStepRef.current = -1
+        }
 
         setPlaybackPosition(newPosition)
         setCurrentMeasure(Math.floor(newPosition))
@@ -214,6 +224,110 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [isTimelinePlaying, timeline.bpm, playbackPosition])
+
+  // Audio scheduling for timeline playback
+  useEffect(() => {
+    if (!isTimelinePlaying) {
+      if (audioSchedulerRef.current !== null) {
+        clearInterval(audioSchedulerRef.current)
+        audioSchedulerRef.current = null
+      }
+      lastScheduledStepRef.current = -1
+      return
+    }
+
+    // Constants for timing
+    const STEPS_PER_MEASURE = 16 // 16th notes per measure
+    const msPerBeat = (60 / timeline.bpm) * 1000
+    const msPerStep = msPerBeat / 4 // 4 steps per beat
+    const scheduleAheadMs = 100 // Schedule 100ms ahead
+
+    const scheduleAudio = () => {
+      if (!isTimelinePlaying || audioContextManager.isSuspended) return
+
+      const currentTime = audioEngine.getCurrentTime()
+
+      // Calculate current step in global timeline (wrapping at MEASURE_COUNT * STEPS_PER_MEASURE)
+      const totalStepsInTimeline = MEASURE_COUNT * STEPS_PER_MEASURE
+      const totalSteps = playbackPosition * STEPS_PER_MEASURE
+      const currentGlobalStep = Math.floor(totalSteps)
+
+      // Reset lastScheduledStep if we've looped (current step is less than last scheduled)
+      if (currentGlobalStep < lastScheduledStepRef.current - totalStepsInTimeline / 2) {
+        lastScheduledStepRef.current = -1
+      }
+
+      // Schedule steps up to scheduleAhead
+      const stepsAhead = Math.ceil(scheduleAheadMs / msPerStep)
+
+      for (let i = 0; i <= stepsAhead; i++) {
+        const stepToSchedule = (currentGlobalStep + i) % totalStepsInTimeline
+
+        // Skip if already scheduled (use modulo comparison)
+        if (lastScheduledStepRef.current >= 0 &&
+            stepToSchedule <= lastScheduledStepRef.current &&
+            lastScheduledStepRef.current - stepToSchedule < totalStepsInTimeline / 2) {
+          continue
+        }
+
+        // Calculate when this step should play
+        const timeOffset = (i * msPerStep) / 1000 // Use loop offset directly for timing
+        const scheduleTime = currentTime + timeOffset
+
+        // Find blocks at this step's position
+        const measureAtStep = stepToSchedule / STEPS_PER_MEASURE
+        const stepWithinMeasure = stepToSchedule % STEPS_PER_MEASURE
+
+        // Check each track for blocks at this position
+        timeline.tracks.forEach(track => {
+          if (track.muted) return
+
+          track.blocks.forEach(block => {
+            const blockStart = block.startMeasure
+            const blockEnd = blockStart + block.lengthMeasures
+
+            // Is this step within this block?
+            if (measureAtStep >= blockStart && measureAtStep < blockEnd) {
+              // Find the pattern for this block
+              const pattern = savedPatterns.find(p => p.id === block.patternId)
+              if (!pattern) return
+
+              // Calculate position within block and wrap for pattern looping
+              const patternStepCount = pattern.tracks[0]?.steps.length ?? 16
+              const positionInBlock = measureAtStep - blockStart
+              const patternMeasures = patternStepCount / STEPS_PER_MEASURE
+              const loopedPosition = positionInBlock % patternMeasures
+              const patternStep = Math.floor(loopedPosition * STEPS_PER_MEASURE) + (stepWithinMeasure % patternStepCount)
+              const wrappedStep = patternStep % patternStepCount
+
+              // Play active sounds at this step
+              pattern.tracks.forEach(patternTrack => {
+                const step = patternTrack.steps[wrappedStep]
+                if (step?.active) {
+                  const isSynth = patternTrack.soundType === 'synth'
+                  const volume = (patternTrack.volume ?? 1) * track.volume
+                  audioEngine.schedulePlay(patternTrack.soundId, scheduleTime, isSynth, volume)
+                }
+              })
+            }
+          })
+        })
+
+        lastScheduledStepRef.current = stepToSchedule
+      }
+    }
+
+    // Schedule audio every 25ms (similar to sequencer)
+    audioSchedulerRef.current = window.setInterval(scheduleAudio, 25)
+    scheduleAudio() // Run immediately
+
+    return () => {
+      if (audioSchedulerRef.current !== null) {
+        clearInterval(audioSchedulerRef.current)
+        audioSchedulerRef.current = null
+      }
+    }
+  }, [isTimelinePlaying, timeline.bpm, timeline.tracks, savedPatterns, playbackPosition])
 
   // Save a pattern to the library
   const savePattern = useCallback((pattern: SequencerPattern, name?: string): SavedPattern => {
