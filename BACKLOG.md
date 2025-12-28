@@ -142,7 +142,7 @@ Create track sidebar:
 ## Phase 2: Track Management
 
 ### TIMELINE-008: Add Track Creation
-**Status:** ⬜ TODO
+**Status:** ✅ DONE
 
 Implement adding new tracks:
 - "+" button in sidebar
@@ -154,7 +154,7 @@ Implement adding new tracks:
 ---
 
 ### TIMELINE-009: Add Track Deletion
-**Status:** ⬜ TODO
+**Status:** ✅ DONE
 
 Implement removing tracks:
 - Delete button per track (in sidebar or on long-press)
@@ -165,7 +165,7 @@ Implement removing tracks:
 ---
 
 ### TIMELINE-010: Add Track Mute/Volume
-**Status:** ⬜ TODO
+**Status:** ✅ DONE
 
 Implement track controls:
 - Mute toggle per track
@@ -310,12 +310,12 @@ Show mini waveform or step preview inside blocks.
 | Phase | Total | Done | In Progress | TODO |
 |-------|-------|------|-------------|------|
 | Phase 1 | 7 | 7 | 0 | 0 |
-| Phase 2 | 3 | 0 | 0 | 3 |
+| Phase 2 | 3 | 3 | 0 | 0 |
 | Phase 3 | 3 | 0 | 0 | 3 |
 | Phase 4 | 3 | 0 | 0 | 3 |
 | Phase 5 | 2 | 0 | 0 | 2 |
 | Stretch | 3 | 0 | 0 | 3 |
-| **Total** | **21** | **7** | **0** | **14** |
+| **Total** | **21** | **10** | **0** | **11** |
 
 ---
 

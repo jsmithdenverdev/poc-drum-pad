@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Plus, VolumeX } from 'lucide-react';
+import { Plus, VolumeX, Volume2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { TimelineTrack } from '@/types/audio.types';
 
@@ -8,6 +8,8 @@ interface TimelineSidebarProps {
   selectedTrackId: string | null;
   onTrackSelect: (trackId: string) => void;
   onAddTrack: () => void;
+  onDeleteTrack: (trackId: string) => void;
+  onToggleMute: (trackId: string) => void;
   className?: string;
 }
 
@@ -16,6 +18,8 @@ export function TimelineSidebar({
   selectedTrackId,
   onTrackSelect,
   onAddTrack,
+  onDeleteTrack,
+  onToggleMute,
   className,
 }: TimelineSidebarProps) {
   return (
@@ -27,32 +31,70 @@ export function TimelineSidebar({
     >
       {/* Track list */}
       <div className="flex-1 overflow-y-auto">
-        {tracks.map((track) => (
-          <button
-            key={track.id}
-            onClick={() => onTrackSelect(track.id)}
-            className={cn(
-              'flex h-[50px] w-full flex-col items-center justify-center gap-1 border-b border-border transition-colors hover:bg-secondary/50',
-              selectedTrackId === track.id && 'bg-secondary'
-            )}
-          >
-            {/* Color indicator */}
-            <div
-              className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: track.color }}
-            />
+        {tracks.map((track) => {
+          const isSelected = selectedTrackId === track.id
 
-            {/* Track name */}
-            <div className="flex w-full items-center justify-center gap-1 px-1">
-              <span className="max-w-[40px] truncate text-xs font-medium">
-                {track.name}
-              </span>
-              {track.muted && (
-                <VolumeX className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+          return (
+            <div
+              key={track.id}
+              className={cn(
+                'relative flex h-[50px] w-full border-b border-border transition-colors',
+                isSelected && 'bg-secondary'
+              )}
+            >
+              <button
+                onClick={() => onTrackSelect(track.id)}
+                className="flex flex-1 flex-col items-center justify-center gap-0.5 hover:bg-secondary/50"
+              >
+                {/* Color indicator */}
+                <div
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: track.color }}
+                />
+
+                {/* Track name */}
+                <span className="max-w-[50px] truncate text-xs font-medium px-1">
+                  {track.name}
+                </span>
+
+                {/* Mute button - always visible, styled differently when muted */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onToggleMute(track.id)
+                  }}
+                  className={cn(
+                    'flex h-4 w-4 items-center justify-center rounded transition-colors',
+                    track.muted
+                      ? 'text-destructive'
+                      : 'text-muted-foreground/50 hover:text-muted-foreground'
+                  )}
+                  aria-label={track.muted ? 'Unmute track' : 'Mute track'}
+                >
+                  {track.muted ? (
+                    <VolumeX className="h-3 w-3" />
+                  ) : (
+                    <Volume2 className="h-3 w-3" />
+                  )}
+                </button>
+              </button>
+
+              {/* Delete button - visible when selected */}
+              {isSelected && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDeleteTrack(track.id)
+                  }}
+                  className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive/80 text-destructive-foreground hover:bg-destructive transition-colors"
+                  aria-label={`Delete ${track.name}`}
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
               )}
             </div>
-          </button>
-        ))}
+          )
+        })}
       </div>
 
       {/* Add track button */}

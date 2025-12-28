@@ -84,6 +84,8 @@ function AppContent() {
     selectedBlock,
     setSelectedBlock,
     addTrack,
+    removeTrack,
+    toggleTrackMute,
   } = useTimelineContext()
 
   // Swipe tracking for instruments
@@ -441,6 +443,8 @@ function AppContent() {
                 selectedBlockId={selectedBlock?.id ?? null}
                 onTrackSelect={setSelectedTrackId}
                 onAddTrack={() => addTrack()}
+                onDeleteTrack={removeTrack}
+                onToggleMute={toggleTrackMute}
                 onCellClick={handleTimelineCellClick}
                 onBlockClick={handleTimelineBlockClick}
               />

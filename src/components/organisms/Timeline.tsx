@@ -14,6 +14,8 @@ interface TimelineProps {
   selectedBlockId: string | null
   onTrackSelect: (trackId: string) => void
   onAddTrack: () => void
+  onDeleteTrack: (trackId: string) => void
+  onToggleMute: (trackId: string) => void
   onCellClick: (trackId: string, measure: number) => void
   onBlockClick: (trackId: string, block: TimelineBlock) => void
   className?: string
@@ -32,6 +34,8 @@ export function Timeline({
   selectedBlockId,
   onTrackSelect,
   onAddTrack,
+  onDeleteTrack,
+  onToggleMute,
   onCellClick,
   onBlockClick,
   className,
@@ -93,6 +97,8 @@ export function Timeline({
           selectedTrackId={selectedTrackId}
           onTrackSelect={onTrackSelect}
           onAddTrack={onAddTrack}
+          onDeleteTrack={onDeleteTrack}
+          onToggleMute={onToggleMute}
           className="flex-shrink-0"
         />
 
