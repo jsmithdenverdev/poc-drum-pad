@@ -440,7 +440,7 @@ function AppContent() {
                 selectedTrackId={selectedTrackId}
                 selectedBlockId={selectedBlock?.id ?? null}
                 onTrackSelect={setSelectedTrackId}
-                onAddTrack={addTrack}
+                onAddTrack={() => addTrack()}
                 onCellClick={handleTimelineCellClick}
                 onBlockClick={handleTimelineBlockClick}
               />
