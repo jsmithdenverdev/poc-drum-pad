@@ -10,8 +10,15 @@ import { SynthConfig } from '@/components/molecules/SynthConfig'
 import { PatternSelector } from '@/components/molecules/PatternSelector'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet'
 import { PlayButton } from '@/components/atoms/PlayButton'
-import { Volume2, AlertTriangle, RefreshCw, Settings, Trash2 } from 'lucide-react'
+import { Volume2, AlertTriangle, RefreshCw, Menu, Trash2 } from 'lucide-react'
 import { AudioProvider, SequencerProvider, useAudio, useSequencerContext } from '@/contexts'
 import { SWIPE_THRESHOLD, DRUM_SOUNDS, ALL_SOUNDS_FOR_DISPLAY } from '@/constants'
 import { PRESET_PATTERNS } from '@/constants/preset-patterns'
@@ -240,7 +247,20 @@ function AppContent() {
         {/* Header - static */}
         <header className="flex-shrink-0 px-4 py-2 border-b border-border">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">{instrumentNames[currentPage]}</h1>
+            {/* Left side - Menu button and title */}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSettings(!showSettings)}
+                className={cn(showSettings && 'bg-secondary')}
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+              <h1 className="text-xl font-bold">{instrumentNames[currentPage]}</h1>
+            </div>
+
+            {/* Right side - Controls */}
             <div className="flex items-center gap-3">
               {/* Sequencer toggle */}
               <div className="flex items-center gap-2">
@@ -257,68 +277,73 @@ function AppContent() {
                 />
               </div>
 
-              {/* Play button - only when sequencer is on */}
-              {showSequencer && (
+              {/* Play button - always rendered but hidden when sequencer is off */}
+              <div className={cn(!showSequencer && 'invisible')}>
                 <PlayButton isPlaying={isPlaying} onToggle={toggle} />
-              )}
+              </div>
 
-              {/* Clear button */}
-              {showSequencer && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={clearPattern}
-                  title="Clear pattern"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </Button>
-              )}
-
-              {/* Settings button */}
+              {/* Clear button - always rendered but hidden when sequencer is off */}
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setShowSettings(!showSettings)}
-                className={cn(showSettings && 'bg-secondary')}
+                onClick={clearPattern}
+                title="Clear pattern"
+                className={cn(!showSequencer && 'invisible')}
               >
-                <Settings className="w-5 h-5" />
+                <Trash2 className="w-5 h-5" />
               </Button>
             </div>
           </div>
         </header>
 
-        {/* Settings panel - static, collapsible */}
-        {showSettings && (
-          <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-secondary/30 space-y-4">
-            <div className="max-w-lg mx-auto space-y-4">
-              {/* Pattern Selector - only when sequencer is on */}
+        {/* Settings drawer */}
+        <Sheet open={showSettings} onOpenChange={setShowSettings}>
+          <SheetContent side="left" className="overflow-y-auto">
+            <SheetHeader className="mb-6">
+              <SheetTitle>Settings</SheetTitle>
+              <SheetDescription>
+                Configure sequencer and instrument settings
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="space-y-6">
+              {/* Patterns Section */}
               {showSequencer && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    Preset Patterns
-                  </label>
+                <section className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2">
+                    Patterns
+                  </h3>
                   <PatternSelector
                     patterns={PRESET_PATTERNS}
                     currentPatternId={pattern.id}
                     onSelectPattern={loadPattern}
                   />
-                </div>
+                </section>
               )}
 
-              <SequencerConfig
-                bpm={bpm}
-                stepCount={stepCount}
-                tracks={DRUM_SOUNDS}
-                hiddenTracks={hiddenTracks}
-                trackVolumes={trackVolumes}
-                onBpmChange={setBpm}
-                onStepCountChange={handleStepCountChange}
-                onToggleTrackVisibility={toggleTrackVisibility}
-                onTrackVolumeChange={setTrackVolume}
-              />
+              {/* Sequencer Section */}
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2">
+                  Sequencer
+                </h3>
+                <SequencerConfig
+                  bpm={bpm}
+                  stepCount={stepCount}
+                  tracks={DRUM_SOUNDS}
+                  hiddenTracks={hiddenTracks}
+                  trackVolumes={trackVolumes}
+                  onBpmChange={setBpm}
+                  onStepCountChange={handleStepCountChange}
+                  onToggleTrackVisibility={toggleTrackVisibility}
+                  onTrackVolumeChange={setTrackVolume}
+                />
+              </section>
 
-              {/* Synth settings - only on synth page */}
-              {currentPage === 1 && (
+              {/* Synth Section */}
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2">
+                  Synth
+                </h3>
                 <SynthConfig
                   settings={synthSettings}
                   onWaveformChange={handleWaveformChange}
@@ -328,10 +353,10 @@ function AppContent() {
                   onReleaseChange={handleReleaseChange}
                   onFilterChange={handleFilterChange}
                 />
-              )}
+              </section>
             </div>
-          </div>
-        )}
+          </SheetContent>
+        </Sheet>
 
         {/* Sequencer - static above instruments */}
         {showSequencer && (

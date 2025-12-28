@@ -12,11 +12,14 @@
   --color-secondary: #27272a;
   --color-secondary-foreground: #fafafa;
   --color-accent: #f97316;
+  --color-accent-foreground: #fafafa;
   --color-muted: #27272a;
   --color-muted-foreground: #a1a1aa;
   --color-border: #27272a;
   --color-input: #3f3f46;
   --color-ring: #8b5cf6;
+  --color-popover: #18181b;
+  --color-popover-foreground: #fafafa;
   --radius: 0.5rem;
 }
 
@@ -56,4 +59,59 @@ html, body {
 
 .animate-drum-trigger {
   animation: drum-trigger 100ms ease-out;
+}
+
+/* Sheet/Dialog animations */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes slide-in-from-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slide-out-to-right {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes slide-in-from-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slide-out-to-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+[data-state="open"].animate-in {
+  animation: fade-in 300ms ease-out forwards;
+}
+
+[data-state="closed"].animate-out {
+  animation: fade-out 300ms ease-out forwards;
+}
+
+[data-state="open"].slide-in-from-right {
+  animation: slide-in-from-right 300ms ease-out forwards;
+}
+
+[data-state="closed"].slide-out-to-right {
+  animation: slide-out-to-right 300ms ease-out forwards;
+}
+
+[data-state="open"].slide-in-from-left {
+  animation: slide-in-from-left 300ms ease-out forwards;
+}
+
+[data-state="closed"].slide-out-to-left {
+  animation: slide-out-to-left 300ms ease-out forwards;
 }
