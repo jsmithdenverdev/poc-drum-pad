@@ -32,6 +32,8 @@ interface TimelineContextValue {
   playbackPosition: number // Continuous 0.0 to measureCount for smooth animation
   isTimelinePlaying: boolean
   toggleTimelinePlayback: () => void
+  stopTimeline: () => void
+  restartTimeline: () => void
 
   // Selection
   selectedTrackId: string | null
@@ -482,16 +484,38 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
     }))
   }, [])
 
-  // Toggle timeline playback
+  // Toggle timeline playback (play/pause)
   const toggleTimelinePlayback = useCallback(() => {
     if (isTimelinePlaying) {
-      // Stopping - reset refs
+      // Pausing - reset start ref but keep position
       playbackStartTimeRef.current = null
     } else {
-      // Starting - will be initialized in the effect
+      // Starting/resuming - will be initialized in the effect
       playbackStartTimeRef.current = null
     }
     setIsTimelinePlaying(prev => !prev)
+  }, [isTimelinePlaying])
+
+  // Stop timeline (pause and go to beginning)
+  const stopTimeline = useCallback(() => {
+    setIsTimelinePlaying(false)
+    setPlaybackPosition(0)
+    setCurrentMeasure(0)
+    playbackStartTimeRef.current = null
+    lastScheduledStepRef.current = -1
+  }, [])
+
+  // Restart timeline (go to beginning and keep playing if was playing)
+  const restartTimeline = useCallback(() => {
+    setPlaybackPosition(0)
+    setCurrentMeasure(0)
+    playbackStartTimeRef.current = null
+    playbackStartPositionRef.current = 0
+    lastScheduledStepRef.current = -1
+    // If playing, reset the start time so animation continues from 0
+    if (isTimelinePlaying) {
+      playbackStartTimeRef.current = performance.now()
+    }
   }, [isTimelinePlaying])
 
   return (
@@ -515,6 +539,8 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
         playbackPosition,
         isTimelinePlaying,
         toggleTimelinePlayback,
+        stopTimeline,
+        restartTimeline,
         selectedTrackId,
         setSelectedTrackId,
         selectedMeasure,

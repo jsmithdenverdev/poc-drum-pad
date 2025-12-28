@@ -7,6 +7,7 @@ import { PianoKeyboard } from '@/components/organisms/PianoKeyboard'
 import { StepSequencer } from '@/components/organisms/StepSequencer'
 import { Timeline } from '@/components/organisms/Timeline'
 import { PatternPickerModal } from '@/components/organisms/PatternPickerModal'
+import { SavePatternModal } from '@/components/organisms/SavePatternModal'
 import { SequencerConfig } from '@/components/molecules/SequencerConfig'
 import { SynthConfig } from '@/components/molecules/SynthConfig'
 import { PatternSelector } from '@/components/molecules/PatternSelector'
@@ -19,7 +20,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 import { PlayButton } from '@/components/atoms/PlayButton'
-import { Volume2, AlertTriangle, RefreshCw, Menu, Trash2, Save, Check } from 'lucide-react'
+import { Volume2, AlertTriangle, RefreshCw, Menu, Trash2, Save, Check, SkipBack, Square } from 'lucide-react'
 import { AudioProvider, SequencerProvider, useAudio, useSequencerContext, TimelineProvider, useTimelineContext } from '@/contexts'
 import type { TimelineBlock, SavedPattern } from '@/types/audio.types'
 import { SWIPE_THRESHOLD, DRUM_SOUNDS, ALL_SOUNDS_FOR_DISPLAY } from '@/constants'
@@ -92,6 +93,8 @@ function AppContent() {
     moveBlock,
     resizeBlock,
     toggleTimelinePlayback,
+    stopTimeline,
+    restartTimeline,
   } = useTimelineContext()
 
   // Pattern picker modal state
@@ -101,6 +104,7 @@ function AppContent() {
     measure: number
   } | null>(null)
   const [justSaved, setJustSaved] = useState(false)
+  const [saveModalOpen, setSaveModalOpen] = useState(false)
 
   // Swipe tracking for instruments
   const instrumentTouchStartX = useRef<number | null>(null)
@@ -223,8 +227,12 @@ function AppContent() {
   }, [currentSequencerPage])
 
   // Save current pattern to library
-  const handleSavePattern = useCallback(() => {
-    savePattern(pattern)
+  const handleSaveClick = useCallback(() => {
+    setSaveModalOpen(true)
+  }, [])
+
+  const handleSavePattern = useCallback((name: string) => {
+    savePattern(pattern, name)
     setJustSaved(true)
     setTimeout(() => setJustSaved(false), 1500)
   }, [savePattern, pattern])
@@ -395,7 +403,30 @@ function AppContent() {
             </div>
 
             {/* Right side - Controls */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              {/* Timeline transport controls */}
+              {currentSequencerPage === 1 && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={restartTimeline}
+                    title="Restart"
+                    className="rounded-lg text-muted-foreground hover:text-foreground h-8 w-8"
+                  >
+                    <SkipBack className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={stopTimeline}
+                    title="Stop"
+                    className="rounded-lg text-muted-foreground hover:text-foreground h-8 w-8"
+                  >
+                    <Square className="w-3.5 h-3.5" />
+                  </Button>
+                </>
+              )}
               <PlayButton
                 isPlaying={currentSequencerPage === 0 ? isPlaying : isTimelinePlaying}
                 onToggle={currentSequencerPage === 0 ? toggle : toggleTimelinePlayback}
@@ -403,7 +434,7 @@ function AppContent() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={handleSavePattern}
+                onClick={handleSaveClick}
                 title="Save pattern to library"
                 className={cn(
                   'rounded-lg transition-colors',
@@ -607,6 +638,14 @@ function AppContent() {
         savedPatterns={savedPatterns}
         trackName={pendingBlockPlacement ? timeline.tracks.find(t => t.id === pendingBlockPlacement.trackId)?.name : undefined}
         measureNumber={pendingBlockPlacement?.measure}
+      />
+
+      {/* Save Pattern Modal */}
+      <SavePatternModal
+        open={saveModalOpen}
+        onClose={() => setSaveModalOpen(false)}
+        onSave={handleSavePattern}
+        defaultName={pattern.name}
       />
     </>
   )
