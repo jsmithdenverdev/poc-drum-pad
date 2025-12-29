@@ -93,6 +93,7 @@ function AppContent() {
     removeBlock,
     moveBlock,
     resizeBlock,
+    duplicateBlock,
     toggleTimelinePlayback,
     stopTimeline,
     restartTimeline,
@@ -114,6 +115,8 @@ function AppContent() {
   } | null>(null)
   const [justSaved, setJustSaved] = useState(false)
   const [saveModalOpen, setSaveModalOpen] = useState(false)
+  const [blockActionsSheetOpen, setBlockActionsSheetOpen] = useState(false)
+  const [selectedBlockTrackId, setSelectedBlockTrackId] = useState<string | null>(null)
 
   // Swipe tracking for instruments
   const instrumentTouchStartX = useRef<number | null>(null)
@@ -265,8 +268,10 @@ function AppContent() {
     setPendingBlockPlacement(null)
   }, [])
 
-  const handleTimelineBlockClick = useCallback((_trackId: string, block: TimelineBlock) => {
+  const handleTimelineBlockClick = useCallback((trackId: string, block: TimelineBlock) => {
     setSelectedBlock(block)
+    setSelectedBlockTrackId(trackId)
+    setBlockActionsSheetOpen(true)
   }, [setSelectedBlock])
 
   const handleBlockDelete = useCallback((trackId: string, blockId: string) => {
