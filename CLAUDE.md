@@ -334,6 +334,60 @@ npx shadcn@latest add dialog
 
 7. **Visual Feedback**: Every pad trigger should have immediate visual feedback.
 
+## Backlog-Driven Development
+
+For large features, use a backlog file (`BACKLOG.md`) to track implementation:
+
+### Process
+
+1. **Create Backlog**: At feature start, create `BACKLOG.md` with:
+   - Feature description and design decisions
+   - Phases broken into small, atomic tasks
+   - Status tracking (⬜ TODO, 🔄 IN PROGRESS, ✅ DONE, ❌ BLOCKED)
+   - Progress summary table
+
+2. **Update Status**: As work progresses:
+   - Mark tasks 🔄 IN PROGRESS when starting
+   - Mark tasks ✅ DONE when complete
+   - Add implementation notes as needed
+
+3. **Use Sub-Agents**: For parallel work:
+   - Sub-agents can pick up individual tasks
+   - Reference task IDs in commits (e.g., "TIMELINE-003: Create Timeline layout")
+   - Update backlog after completing tasks
+
+4. **Clean Up**: When feature is complete:
+   - Delete or archive the backlog file
+   - Commit final state
+
+### Example Backlog Structure
+
+```markdown
+# Feature Backlog
+
+## Status Legend
+| Status | Description |
+|--------|-------------|
+| ⬜ TODO | Not started |
+| 🔄 IN PROGRESS | Currently working |
+| ✅ DONE | Completed |
+
+## Phase 1: Foundation
+
+### TASK-001: Description
+**Status:** ⬜ TODO
+
+Details of what needs to be done...
+
+**Files:** `src/path/to/file.tsx`
+```
+
+This approach ensures:
+- Clear visibility into progress
+- Atomic, parallelizable tasks
+- Consistent commit messages
+- Documentation of design decisions
+
 ## Resources
 
 - [Web Audio API (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API)

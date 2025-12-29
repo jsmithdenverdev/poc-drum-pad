@@ -5,6 +5,9 @@ import { LandscapeLayout } from '@/components/templates/LandscapeLayout'
 import { DrumPadGrid } from '@/components/organisms/DrumPadGrid'
 import { PianoKeyboard } from '@/components/organisms/PianoKeyboard'
 import { StepSequencer } from '@/components/organisms/StepSequencer'
+import { Timeline } from '@/components/organisms/Timeline'
+import { PatternPickerModal } from '@/components/organisms/PatternPickerModal'
+import { SavePatternModal } from '@/components/organisms/SavePatternModal'
 import { SequencerConfig } from '@/components/molecules/SequencerConfig'
 import { SynthConfig } from '@/components/molecules/SynthConfig'
 import { PatternSelector } from '@/components/molecules/PatternSelector'
@@ -17,8 +20,9 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 import { PlayButton } from '@/components/atoms/PlayButton'
-import { Volume2, AlertTriangle, RefreshCw, Menu, Trash2 } from 'lucide-react'
-import { AudioProvider, SequencerProvider, useAudio, useSequencerContext } from '@/contexts'
+import { Volume2, AlertTriangle, RefreshCw, Menu, Trash2, Save, Check, SkipBack, Square } from 'lucide-react'
+import { AudioProvider, SequencerProvider, useAudio, useSequencerContext, TimelineProvider, useTimelineContext } from '@/contexts'
+import type { TimelineBlock, SavedPattern } from '@/types/audio.types'
 import { SWIPE_THRESHOLD, DRUM_SOUNDS, ALL_SOUNDS_FOR_DISPLAY } from '@/constants'
 import { PRESET_PATTERNS } from '@/constants/preset-patterns'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
@@ -26,7 +30,8 @@ import { cn } from '@/lib/utils'
 
 // Main app content (needs to be inside providers)
 function AppContent() {
-  const [currentPage, setCurrentPage] = useState(0) // 0 = drums, 1 = synth
+  const [currentInstrumentPage, setCurrentInstrumentPage] = useState(0) // 0 = drums, 1 = synth
+  const [currentSequencerPage, setCurrentSequencerPage] = useState(0) // 0 = sequencer, 1 = timeline
   const {
     init,
     needsInit,
@@ -70,8 +75,41 @@ function AppContent() {
     redo,
   } = useSequencerContext()
 
-  // Swipe tracking
-  const touchStartX = useRef<number | null>(null)
+  const {
+    timeline,
+    savedPatterns,
+    savePattern,
+    playbackPosition,
+    isTimelinePlaying,
+    selectedTrackId,
+    setSelectedTrackId,
+    selectedBlock,
+    setSelectedBlock,
+    addTrack,
+    removeTrack,
+    toggleTrackMute,
+    addBlock,
+    removeBlock,
+    moveBlock,
+    resizeBlock,
+    toggleTimelinePlayback,
+    stopTimeline,
+    restartTimeline,
+  } = useTimelineContext()
+
+  // Pattern picker modal state
+  const [patternPickerOpen, setPatternPickerOpen] = useState(false)
+  const [pendingBlockPlacement, setPendingBlockPlacement] = useState<{
+    trackId: string
+    measure: number
+  } | null>(null)
+  const [justSaved, setJustSaved] = useState(false)
+  const [saveModalOpen, setSaveModalOpen] = useState(false)
+
+  // Swipe tracking for instruments
+  const instrumentTouchStartX = useRef<number | null>(null)
+  // Swipe tracking for sequencer/timeline
+  const sequencerTouchStartX = useRef<number | null>(null)
 
   // Create track volumes Map from pattern
   const trackVolumes = useMemo(() => {
@@ -115,7 +153,7 @@ function AppContent() {
 
   // Keyboard shortcuts (only active on drum page)
   useKeyboardShortcuts({
-    onTrigger: currentPage === 0 ? handleDrumTrigger : undefined,
+    onTrigger: currentInstrumentPage === 0 ? handleDrumTrigger : undefined,
     onUndo: undo,
     onRedo: redo,
     onCopy: handleCopy,
@@ -123,28 +161,128 @@ function AppContent() {
     enabled: true,
   })
 
-  // Handle touch start
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX
+  // Handle instrument touch start
+  const handleInstrumentTouchStart = useCallback((e: React.TouchEvent) => {
+    instrumentTouchStartX.current = e.touches[0].clientX
   }, [])
 
-  // Handle touch end
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (touchStartX.current === null) return
+  // Handle instrument touch end
+  const handleInstrumentTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (instrumentTouchStartX.current === null) return
 
     const touchEndX = e.changedTouches[0].clientX
-    const diff = touchEndX - touchStartX.current
+    const diff = touchEndX - instrumentTouchStartX.current
 
     if (Math.abs(diff) > SWIPE_THRESHOLD) {
-      if (diff > 0 && currentPage > 0) {
-        setCurrentPage(prev => prev - 1)
-      } else if (diff < 0 && currentPage < 1) {
-        setCurrentPage(prev => prev + 1)
+      if (diff > 0 && currentInstrumentPage > 0) {
+        setCurrentInstrumentPage(prev => prev - 1)
+      } else if (diff < 0 && currentInstrumentPage < 1) {
+        setCurrentInstrumentPage(prev => prev + 1)
       }
     }
 
-    touchStartX.current = null
-  }, [currentPage])
+    instrumentTouchStartX.current = null
+  }, [currentInstrumentPage])
+
+  // Handle sequencer/timeline touch start - edge-only for timeline (has internal scroll)
+  const handleSequencerTouchStart = useCallback((e: React.TouchEvent) => {
+    const touchX = e.touches[0].clientX
+
+    // Timeline has internal scrolling, so only allow swipe from edges
+    if (currentSequencerPage === 1) {
+      const target = e.currentTarget as HTMLElement
+      const rect = target.getBoundingClientRect()
+      const edgeThreshold = 50 // pixels from edge to trigger swipe
+
+      const isNearLeftEdge = touchX - rect.left < edgeThreshold
+      const isNearRightEdge = rect.right - touchX < edgeThreshold
+
+      if (isNearLeftEdge || isNearRightEdge) {
+        sequencerTouchStartX.current = touchX
+      } else {
+        sequencerTouchStartX.current = null
+      }
+    } else {
+      // Sequencer allows swipe from anywhere
+      sequencerTouchStartX.current = touchX
+    }
+  }, [currentSequencerPage])
+
+  // Handle sequencer/timeline touch end
+  const handleSequencerTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (sequencerTouchStartX.current === null) return
+
+    const touchEndX = e.changedTouches[0].clientX
+    const diff = touchEndX - sequencerTouchStartX.current
+
+    if (Math.abs(diff) > SWIPE_THRESHOLD) {
+      if (diff > 0 && currentSequencerPage > 0) {
+        setCurrentSequencerPage(prev => prev - 1)
+      } else if (diff < 0 && currentSequencerPage < 1) {
+        setCurrentSequencerPage(prev => prev + 1)
+      }
+    }
+
+    sequencerTouchStartX.current = null
+  }, [currentSequencerPage])
+
+  // Save current pattern to library
+  const handleSaveClick = useCallback(() => {
+    setSaveModalOpen(true)
+  }, [])
+
+  const handleSavePattern = useCallback((name: string) => {
+    savePattern(pattern, name)
+    setJustSaved(true)
+    setTimeout(() => setJustSaved(false), 1500)
+  }, [savePattern, pattern])
+
+  // Timeline handlers
+  const handleTimelineCellClick = useCallback((trackId: string, measure: number) => {
+    setPendingBlockPlacement({ trackId, measure })
+    setPatternPickerOpen(true)
+  }, [])
+
+  const handlePatternSelect = useCallback((pattern: SavedPattern) => {
+    if (pendingBlockPlacement) {
+      addBlock(pendingBlockPlacement.trackId, pattern.id, pendingBlockPlacement.measure)
+    }
+    setPatternPickerOpen(false)
+    setPendingBlockPlacement(null)
+  }, [pendingBlockPlacement, addBlock])
+
+  const handlePatternPickerClose = useCallback(() => {
+    setPatternPickerOpen(false)
+    setPendingBlockPlacement(null)
+  }, [])
+
+  const handleTimelineBlockClick = useCallback((_trackId: string, block: TimelineBlock) => {
+    setSelectedBlock(block)
+  }, [setSelectedBlock])
+
+  const handleBlockDelete = useCallback((trackId: string, blockId: string) => {
+    removeBlock(trackId, blockId)
+  }, [removeBlock])
+
+  const handleBlockMove = useCallback((trackId: string, blockId: string, deltaMeasures: number) => {
+    // Find the block to get its current position
+    const track = timeline.tracks.find(t => t.id === trackId)
+    const block = track?.blocks.find(b => b.id === blockId)
+    if (block) {
+      const newStart = Math.max(0, block.startMeasure + deltaMeasures)
+      moveBlock(trackId, blockId, newStart)
+    }
+  }, [timeline.tracks, moveBlock])
+
+  const handleBlockResize = useCallback((trackId: string, blockId: string, deltaMeasures: number) => {
+    // Find the block to get its current length
+    const track = timeline.tracks.find(t => t.id === trackId)
+    const block = track?.blocks.find(b => b.id === blockId)
+    if (block) {
+      const newLength = Math.max(1, block.lengthMeasures + deltaMeasures)
+      resizeBlock(trackId, blockId, newLength)
+    }
+  }, [timeline.tracks, resizeBlock])
 
   // Handle init button
   const handleInit = useCallback(async () => {
@@ -152,6 +290,7 @@ function AppContent() {
   }, [init])
 
   const instrumentNames = ['Drum Pad', 'Synth']
+  const sequencerViewNames = ['Sequencer', 'Timeline']
 
   // Show init screen if audio not ready
   if (needsInit) {
@@ -260,12 +399,52 @@ function AppContent() {
               >
                 <Menu className="w-5 h-5" />
               </Button>
-              <h1 className="text-lg font-semibold tracking-tight">{instrumentNames[currentPage]}</h1>
+              <h1 className="text-lg font-semibold tracking-tight">{instrumentNames[currentInstrumentPage]}</h1>
             </div>
 
             {/* Right side - Controls */}
-            <div className="flex items-center gap-2">
-              <PlayButton isPlaying={isPlaying} onToggle={toggle} />
+            <div className="flex items-center gap-1">
+              {/* Timeline transport controls */}
+              {currentSequencerPage === 1 && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={restartTimeline}
+                    title="Restart"
+                    className="rounded-lg text-muted-foreground hover:text-foreground h-8 w-8"
+                  >
+                    <SkipBack className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={stopTimeline}
+                    title="Stop"
+                    className="rounded-lg text-muted-foreground hover:text-foreground h-8 w-8"
+                  >
+                    <Square className="w-3.5 h-3.5" />
+                  </Button>
+                </>
+              )}
+              <PlayButton
+                isPlaying={currentSequencerPage === 0 ? isPlaying : isTimelinePlaying}
+                onToggle={currentSequencerPage === 0 ? toggle : toggleTimelinePlayback}
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSaveClick}
+                title="Save pattern to library"
+                className={cn(
+                  'rounded-lg transition-colors',
+                  justSaved
+                    ? 'text-green-500 bg-green-500/10'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {justSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
@@ -339,30 +518,81 @@ function AppContent() {
           </SheetContent>
         </Sheet>
 
-        {/* Sequencer - static above instruments */}
-        <div className="flex-shrink-0 py-4 border-b border-border/50 bg-secondary/20">
-          <StepSequencer
-            pattern={pattern}
-            sounds={ALL_SOUNDS_FOR_DISPLAY}
-            selectedSteps={selectedSteps}
-            currentStep={currentStep}
-            isPlaying={isPlaying}
-            stepCount={stepCount}
-            hiddenTracks={hiddenTracks}
-            onStepSelect={handleStepSelect}
-          />
+        {/* Swipeable Sequencer/Timeline area */}
+        <div
+          className="flex-shrink-0 border-b border-border/50 bg-secondary/20 overflow-hidden relative"
+          onTouchStart={handleSequencerTouchStart}
+          onTouchEnd={handleSequencerTouchEnd}
+        >
+          {/* Sequencer/Timeline container - slides horizontally */}
+          <div
+            className="flex transition-transform duration-300 ease-out"
+            style={{ transform: `translateX(-${currentSequencerPage * 100}%)` }}
+          >
+            {/* Step Sequencer */}
+            <div className="w-full flex-shrink-0 py-4">
+              <StepSequencer
+                pattern={pattern}
+                sounds={ALL_SOUNDS_FOR_DISPLAY}
+                selectedSteps={selectedSteps}
+                currentStep={currentStep}
+                isPlaying={isPlaying}
+                stepCount={stepCount}
+                hiddenTracks={hiddenTracks}
+                onStepSelect={handleStepSelect}
+              />
+            </div>
+
+            {/* Timeline */}
+            <div className="w-full flex-shrink-0 py-4">
+              <Timeline
+                timeline={timeline}
+                savedPatterns={savedPatterns}
+                playbackPosition={playbackPosition}
+                isPlaying={isTimelinePlaying}
+                selectedTrackId={selectedTrackId}
+                selectedBlockId={selectedBlock?.id ?? null}
+                onTrackSelect={setSelectedTrackId}
+                onAddTrack={() => addTrack()}
+                onDeleteTrack={removeTrack}
+                onToggleMute={toggleTrackMute}
+                onCellClick={handleTimelineCellClick}
+                onBlockClick={handleTimelineBlockClick}
+                onBlockDelete={handleBlockDelete}
+                onBlockMove={handleBlockMove}
+                onBlockResize={handleBlockResize}
+              />
+            </div>
+          </div>
+
+          {/* Sequencer/Timeline page indicator dots */}
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+            {[0, 1].map(index => (
+              <button
+                key={index}
+                className={cn(
+                  'h-1 rounded-full transition-all duration-200',
+                  currentSequencerPage === index
+                    ? 'bg-primary w-4'
+                    : 'bg-muted-foreground/40 w-1 hover:bg-muted-foreground/60',
+                )}
+                onClick={() => setCurrentSequencerPage(index)}
+                aria-label={sequencerViewNames[index]}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Swipeable instrument area */}
         <div
           className="flex-1 overflow-hidden relative min-h-0"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
+          onTouchStart={handleInstrumentTouchStart}
+          onTouchEnd={handleInstrumentTouchEnd}
         >
           {/* Instruments container - slides horizontally */}
           <div
             className="flex h-full transition-transform duration-300 ease-out"
-            style={{ transform: `translateX(-${currentPage * 100}%)` }}
+            style={{ transform: `translateX(-${currentInstrumentPage * 100}%)` }}
           >
             {/* Drum Pads */}
             <div className="w-full h-full flex-shrink-0 flex items-center justify-center">
@@ -386,11 +616,11 @@ function AppContent() {
                 key={index}
                 className={cn(
                   'h-1.5 rounded-full transition-all duration-200',
-                  currentPage === index
+                  currentInstrumentPage === index
                     ? 'bg-primary w-5'
                     : 'bg-muted-foreground/40 w-1.5 hover:bg-muted-foreground/60',
                 )}
-                onClick={() => setCurrentPage(index)}
+                onClick={() => setCurrentInstrumentPage(index)}
                 aria-label={instrumentNames[index]}
               />
             ))}
@@ -399,6 +629,24 @@ function AppContent() {
       </div>
 
       <DebugDrawer />
+
+      {/* Pattern Picker Modal */}
+      <PatternPickerModal
+        open={patternPickerOpen}
+        onClose={handlePatternPickerClose}
+        onSelectPattern={handlePatternSelect}
+        savedPatterns={savedPatterns}
+        trackName={pendingBlockPlacement ? timeline.tracks.find(t => t.id === pendingBlockPlacement.trackId)?.name : undefined}
+        measureNumber={pendingBlockPlacement?.measure}
+      />
+
+      {/* Save Pattern Modal */}
+      <SavePatternModal
+        open={saveModalOpen}
+        onClose={() => setSaveModalOpen(false)}
+        onSave={handleSavePattern}
+        defaultName={pattern.name}
+      />
     </>
   )
 }
@@ -408,7 +656,9 @@ function App() {
   return (
     <AudioProvider>
       <SequencerProvider>
-        <AppContent />
+        <TimelineProvider>
+          <AppContent />
+        </TimelineProvider>
       </SequencerProvider>
     </AudioProvider>
   )

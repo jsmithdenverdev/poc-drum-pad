@@ -28,7 +28,7 @@ SheetOverlay.displayName = SheetPrimitive.Overlay.displayName
 
 interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content> {
-  side?: 'left' | 'right'
+  side?: 'left' | 'right' | 'bottom'
 }
 
 const SheetContent = React.forwardRef<
@@ -41,18 +41,20 @@ const SheetContent = React.forwardRef<
       ref={ref}
       className={cn(
         'fixed z-50 gap-4 bg-popover p-6 shadow-2xl',
-        'inset-y-0 h-full w-[280px] sm:w-[320px]',
         'flex flex-col',
-        side === 'right' && 'right-0 border-l border-border/50 slide-in-from-right',
-        side === 'left' && 'left-0 border-r border-border/50 slide-in-from-left',
+        side === 'right' && 'inset-y-0 right-0 h-full w-[280px] sm:w-[320px] border-l border-border/50 slide-in-from-right',
+        side === 'left' && 'inset-y-0 left-0 h-full w-[280px] sm:w-[320px] border-r border-border/50 slide-in-from-left',
+        side === 'bottom' && 'inset-x-0 bottom-0 w-full border-t border-border/50 animate-in slide-in-from-bottom',
         className
       )}
       {...props}
     >
-      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 opacity-60 ring-offset-background transition-all hover:opacity-100 hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
-        <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
-      </SheetPrimitive.Close>
+      {side !== 'bottom' && (
+        <SheetPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 opacity-60 ring-offset-background transition-all hover:opacity-100 hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </SheetPrimitive.Close>
+      )}
       {children}
     </SheetPrimitive.Content>
   </SheetPortal>
