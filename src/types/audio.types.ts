@@ -70,6 +70,7 @@ export interface Timeline {
   name: string
   bpm: number
   tracks: TimelineTrack[] // Track-based model for arrangement
+  scenes?: Scene[] // Scene-based workflow (alternative to blocks in tracks)
 }
 
 // Color palette for auto-assigning track colors
@@ -88,4 +89,14 @@ export const TIMELINE_TRACK_COLORS = [
 export interface SavedPattern extends SequencerPattern {
   createdAt: number
   updatedAt: number
+}
+
+// Scene-based workflow types
+export type SceneDuration = 4 | 8 | 16 // Duration in measures
+
+export interface Scene {
+  id: string
+  name: string
+  duration: SceneDuration // Duration in measures
+  trackPatterns: Record<string, string> // trackId -> patternId mapping
 }

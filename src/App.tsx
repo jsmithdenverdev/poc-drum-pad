@@ -5,9 +5,10 @@ import { LandscapeLayout } from '@/components/templates/LandscapeLayout'
 import { DrumPadGrid } from '@/components/organisms/DrumPadGrid'
 import { PianoKeyboard } from '@/components/organisms/PianoKeyboard'
 import { StepSequencer } from '@/components/organisms/StepSequencer'
-import { Timeline } from '@/components/organisms/Timeline'
+import { TimelineWithScenes } from '@/components/organisms/TimelineWithScenes'
 import { PatternPickerModal } from '@/components/organisms/PatternPickerModal'
 import { SavePatternModal } from '@/components/organisms/SavePatternModal'
+import { TimelineBlockActionsSheet } from '@/components/organisms/TimelineBlockActionsSheet'
 import { SequencerConfig } from '@/components/molecules/SequencerConfig'
 import { SynthConfig } from '@/components/molecules/SynthConfig'
 import { PatternSelector } from '@/components/molecules/PatternSelector'
@@ -96,6 +97,14 @@ function AppContent() {
     toggleTimelinePlayback,
     stopTimeline,
     restartTimeline,
+    scenes,
+    selectedSceneId,
+    setSelectedSceneId,
+    addScene,
+    removeScene,
+    duplicateScene,
+    updateScene,
+    setScenePattern,
   } = useTimelineContext()
 
   // Pattern picker modal state
@@ -550,7 +559,7 @@ function AppContent() {
 
             {/* Timeline */}
             <div className="w-full flex-shrink-0 py-4">
-              <Timeline
+              <TimelineWithScenes
                 timeline={timeline}
                 savedPatterns={savedPatterns}
                 playbackPosition={playbackPosition}
@@ -566,6 +575,14 @@ function AppContent() {
                 onBlockDelete={handleBlockDelete}
                 onBlockMove={handleBlockMove}
                 onBlockResize={handleBlockResize}
+                scenes={scenes}
+                selectedSceneId={selectedSceneId}
+                onSceneSelect={setSelectedSceneId}
+                onSceneAdd={() => addScene()}
+                onSceneDelete={removeScene}
+                onSceneDuplicate={duplicateScene}
+                onSceneUpdate={updateScene}
+                onScenePatternSet={setScenePattern}
               />
             </div>
           </div>

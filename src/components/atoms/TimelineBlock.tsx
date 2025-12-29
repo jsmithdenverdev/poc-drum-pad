@@ -354,12 +354,12 @@ export function TimelineBlock({
           className
         )}
         style={{
-          width: (isResizing || isPinching) ? `calc(100% + \${resizeOffset}px)` : '100%',
-          background: `radial-gradient(ellipse at 30% 30%, \${color}dd 0%, \${color}aa 50%, \${color}77 100%)`,
+          width: (isResizing || isPinching) ? `calc(100% + ${resizeOffset}px)` : '100%',
+          background: `radial-gradient(ellipse at 30% 30%, ${color}dd 0%, ${color}aa 50%, ${color}77 100%)`,
           boxShadow: isSelected
-            ? `0 0 0 2px \${color}, 0 0 12px \${color}80, inset 1px 1px 3px rgba(255,255,255,0.2), inset -1px -1px 3px rgba(0,0,0,0.3)`
+            ? `0 0 0 2px ${color}, 0 0 12px ${color}80, inset 1px 1px 3px rgba(255,255,255,0.2), inset -1px -1px 3px rgba(0,0,0,0.3)`
             : 'inset 1px 1px 3px rgba(255,255,255,0.15), inset -1px -1px 3px rgba(0,0,0,0.3)',
-          transform: (isDragging || isTwoFingerDrag) ? `translateX(\${dragOffset}px)` : undefined,
+          transform: (isDragging || isTwoFingerDrag) ? `translateX(${dragOffset}px)` : undefined,
           // Prevent scroll during drag/resize operations when selected
           touchAction: isSelected ? 'none' : 'auto',
         }}
@@ -370,7 +370,7 @@ export function TimelineBlock({
         onPointerCancel={handlePointerUp}
         role="button"
         tabIndex={0}
-        aria-label={`\${patternName} block, \${block.lengthMeasures} measures at measure \${block.startMeasure + 1}\${isSelected ? ', selected' : ''}`}
+        aria-label={`${patternName} block, ${block.lengthMeasures} measures at measure ${block.startMeasure + 1}${isSelected ? ', selected' : ''}`}
         aria-pressed={isSelected}
       >
       <span
@@ -415,7 +415,7 @@ export function TimelineBlock({
             vibrate(10)
           }}
           className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/80 transition-colors shadow-md z-10"
-          aria-label={`Delete \${patternName} block`}
+          aria-label={`Delete ${patternName} block`}
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -436,8 +436,8 @@ export function TimelineBlock({
         <div
           className="fixed bg-background border border-border rounded-lg shadow-lg overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100"
           style={{
-            left: `\${contextMenuPos.x}px`,
-            top: `\${contextMenuPos.y}px`,
+            left: `${contextMenuPos.x}px`,
+            top: `${contextMenuPos.y}px`,
             transform: 'translate(-50%, -100%) translateY(-8px)',
           }}
           onClick={(e) => e.stopPropagation()}
