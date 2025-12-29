@@ -65,11 +65,22 @@ export interface TimelineTrack {
   blocks: TimelineBlock[]
 }
 
+// Scene types for scene-based workflow
+export type SceneDuration = 4 | 8 | 16
+
+export interface Scene {
+  id: string
+  name: string
+  duration: SceneDuration
+  trackPatterns: Record<string, string> // trackId -> patternId
+}
+
 export interface Timeline {
   id: string
   name: string
   bpm: number
   tracks: TimelineTrack[] // Track-based model for arrangement
+  scenes?: Scene[] // Optional scene-based workflow
 }
 
 // Color palette for auto-assigning track colors
