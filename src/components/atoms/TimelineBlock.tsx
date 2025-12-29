@@ -1,7 +1,13 @@
 import { useState, useRef, useCallback } from 'react'
 import { cn } from '@/lib/utils'
-import { X, GripVertical } from 'lucide-react'
+import { X, GripVertical, Copy, Edit3, Trash2 } from 'lucide-react'
 import type { TimelineBlock as TimelineBlockType } from '@/types/audio.types'
+
+interface PointerInfo {
+  id: number
+  x: number
+  y: number
+}
 
 interface TimelineBlockProps {
   block: TimelineBlockType
@@ -13,7 +19,16 @@ interface TimelineBlockProps {
   onDelete?: () => void
   onMove?: (deltaMeasures: number) => void
   onResize?: (deltaLengthMeasures: number) => void
+  onDuplicate?: () => void
+  onEdit?: () => void
   className?: string
+}
+
+// Haptic feedback helper
+const vibrate = (ms: number) => {
+  if (navigator.vibrate) {
+    navigator.vibrate(ms)
+  }
 }
 
 export function TimelineBlock({
@@ -26,46 +41,170 @@ export function TimelineBlock({
   onDelete,
   onMove,
   onResize,
+  onDuplicate,
+  onEdit,
   className,
 }: TimelineBlockProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [dragOffset, setDragOffset] = useState(0)
   const [resizeOffset, setResizeOffset] = useState(0)
+  const [showContextMenu, setShowContextMenu] = useState(false)
+  const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 })
+
   const dragStartX = useRef<number | null>(null)
   const resizeStartX = useRef<number | null>(null)
   const hasMoved = useRef(false)
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (!isSelected || !onMove) return
+  // Multi-touch tracking
+  const activePointers = useRef<Map<number, PointerInfo>>(new Map())
+  const initialPinchDistance = useRef<number | null>(null)
+  const initialPinchMidpoint = useRef<{ x: number; y: number } | null>(null)
 
-    dragStartX.current = e.clientX
-    hasMoved.current = false
-    setIsDragging(true)
-    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-  }, [isSelected, onMove])
+  // Long-press timer
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressStartPos = useRef<{ x: number; y: number } | null>(null)
+
+  // Calculate distance between two points
+  const getDistance = useCallback((p1: PointerInfo, p2: PointerInfo): number => {
+    const dx = p2.x - p1.x
+    const dy = p2.y - p1.y
+    return Math.sqrt(dx * dx + dy * dy)
+  }, [])
+
+  // Calculate midpoint between two points
+  const getMidpoint = useCallback((p1: PointerInfo, p2: PointerInfo): { x: number; y: number } => {
+    return {
+      x: (p1.x + p2.x) / 2,
+      y: (p1.y + p2.y) / 2,
+    }
+  }, [])
+
+  // Clear long-press timer
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+    longPressStartPos.current = null
+  }, [])
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    // Track this pointer
+    activePointers.current.set(e.pointerId, {
+      id: e.pointerId,
+      x: e.clientX,
+      y: e.clientY,
+    })
+
+    const pointerCount = activePointers.current.size
+
+    // Single finger - start single-finger drag or long-press
+    if (pointerCount === 1 && isSelected && onMove) {
+      dragStartX.current = e.clientX
+      hasMoved.current = false
+      setIsDragging(true)
+      ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+
+      // Start long-press timer
+      longPressStartPos.current = { x: e.clientX, y: e.clientY }
+      longPressTimer.current = setTimeout(() => {
+        vibrate(50)
+        setShowContextMenu(true)
+        setContextMenuPos({ x: e.clientX, y: e.clientY })
+        clearLongPressTimer()
+      }, 500)
+    }
+
+    // Two fingers - start pinch or two-finger drag
+    if (pointerCount === 2 && isSelected) {
+      // Cancel any existing single-finger drag
+      setIsDragging(false)
+      dragStartX.current = null
+      clearLongPressTimer()
+
+      const pointers = Array.from(activePointers.current.values())
+      const distance = getDistance(pointers[0], pointers[1])
+      const midpoint = getMidpoint(pointers[0], pointers[1])
+
+      initialPinchDistance.current = distance
+      initialPinchMidpoint.current = midpoint
+    }
+  }, [isSelected, onMove, getDistance, getMidpoint, clearLongPressTimer])
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    // Handle resize
+    // Update pointer position
+    if (activePointers.current.has(e.pointerId)) {
+      activePointers.current.set(e.pointerId, {
+        id: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+      })
+    }
+
+    const pointerCount = activePointers.current.size
+
+    // Check if moved too much for long-press
+    if (longPressStartPos.current) {
+      const dx = e.clientX - longPressStartPos.current.x
+      const dy = e.clientY - longPressStartPos.current.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      if (distance > 5) {
+        clearLongPressTimer()
+      }
+    }
+
+    // Handle resize (from resize handle)
     if (isResizing && resizeStartX.current !== null) {
       const deltaX = e.clientX - resizeStartX.current
       setResizeOffset(deltaX)
       return
     }
 
-    // Handle drag
-    if (!isDragging || dragStartX.current === null) return
+    // Two-finger gestures (pinch-to-resize or two-finger drag)
+    if (pointerCount === 2 && isSelected && initialPinchDistance.current !== null) {
+      const pointers = Array.from(activePointers.current.values())
+      const currentDistance = getDistance(pointers[0], pointers[1])
+      const currentMidpoint = getMidpoint(pointers[0], pointers[1])
 
-    const deltaX = e.clientX - dragStartX.current
-    if (Math.abs(deltaX) > 5) {
-      hasMoved.current = true
+      // Pinch-to-resize
+      if (onResize && initialPinchDistance.current) {
+        const distanceDelta = currentDistance - initialPinchDistance.current
+        // Map pinch distance to resize offset (scale factor for better UX)
+        const resizeDelta = distanceDelta * 0.5
+        setResizeOffset(resizeDelta)
+      }
+
+      // Two-finger drag
+      if (onMove && initialPinchMidpoint.current) {
+        const midpointDeltaX = currentMidpoint.x - initialPinchMidpoint.current.x
+        setDragOffset(midpointDeltaX)
+      }
+
+      return
     }
-    setDragOffset(deltaX)
-  }, [isDragging, isResizing])
+
+    // Single-finger drag
+    if (isDragging && dragStartX.current !== null && pointerCount === 1) {
+      const deltaX = e.clientX - dragStartX.current
+      if (Math.abs(deltaX) > 5) {
+        hasMoved.current = true
+        clearLongPressTimer()
+      }
+      setDragOffset(deltaX)
+    }
+  }, [isDragging, isResizing, isSelected, onMove, onResize, getDistance, getMidpoint, clearLongPressTimer])
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    // Handle resize end
-    if (isResizing) {
+    // Remove this pointer from tracking
+    activePointers.current.delete(e.pointerId)
+    const pointerCount = activePointers.current.size
+
+    // Clear long-press timer on pointer up
+    clearLongPressTimer()
+
+    // Handle resize end (from resize handle)
+    if (isResizing && pointerCount === 0) {
       ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
       setIsResizing(false)
 
@@ -73,6 +212,7 @@ export function TimelineBlock({
         const deltaMeasures = Math.round(resizeOffset / measureWidth)
         if (deltaMeasures !== 0) {
           onResize(deltaMeasures)
+          vibrate(10)
         }
       }
 
@@ -81,36 +221,89 @@ export function TimelineBlock({
       return
     }
 
-    // Handle drag end
-    if (!isDragging) return
-
-    ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
-    setIsDragging(false)
-
-    if (hasMoved.current && onMove) {
-      const deltaMeasures = Math.round(dragOffset / measureWidth)
-      if (deltaMeasures !== 0) {
-        onMove(deltaMeasures)
+    // Handle two-finger gesture end
+    if (pointerCount === 0 && (initialPinchDistance.current !== null || initialPinchMidpoint.current !== null)) {
+      // Apply pinch-to-resize
+      if (onResize && resizeOffset !== 0) {
+        const deltaMeasures = Math.round(resizeOffset / measureWidth)
+        if (deltaMeasures !== 0) {
+          onResize(deltaMeasures)
+          vibrate(10)
+        }
       }
+
+      // Apply two-finger drag
+      if (onMove && dragOffset !== 0) {
+        const deltaMeasures = Math.round(dragOffset / measureWidth)
+        if (deltaMeasures !== 0) {
+          onMove(deltaMeasures)
+          vibrate(10)
+        }
+      }
+
+      // Reset
+      setDragOffset(0)
+      setResizeOffset(0)
+      initialPinchDistance.current = null
+      initialPinchMidpoint.current = null
+      return
     }
 
-    setDragOffset(0)
-    dragStartX.current = null
-  }, [isDragging, isResizing, dragOffset, resizeOffset, measureWidth, onMove, onResize])
+    // Handle single-finger drag end
+    if (isDragging && pointerCount === 0) {
+      ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
+      setIsDragging(false)
+
+      if (hasMoved.current && onMove) {
+        const deltaMeasures = Math.round(dragOffset / measureWidth)
+        if (deltaMeasures !== 0) {
+          onMove(deltaMeasures)
+          vibrate(10)
+        }
+      }
+
+      setDragOffset(0)
+      dragStartX.current = null
+    }
+  }, [isDragging, isResizing, dragOffset, resizeOffset, measureWidth, onMove, onResize, clearLongPressTimer])
 
   const handleClick = useCallback((e: React.MouseEvent) => {
-    // Don't trigger click if we just finished dragging
-    if (hasMoved.current) {
+    // Don't trigger click if we just finished dragging or showing context menu
+    if (hasMoved.current || showContextMenu) {
       e.stopPropagation()
       return
     }
     onClick()
-  }, [onClick])
+    vibrate(5)
+  }, [onClick, showContextMenu])
+
+  // Context menu handlers
+  const handleContextMenuAction = useCallback((action: 'edit' | 'duplicate' | 'delete') => {
+    setShowContextMenu(false)
+    vibrate(5)
+
+    setTimeout(() => {
+      switch (action) {
+        case 'edit':
+          onEdit?.()
+          break
+        case 'duplicate':
+          onDuplicate?.()
+          break
+        case 'delete':
+          onDelete?.()
+          break
+      }
+    }, 50)
+  }, [onEdit, onDuplicate, onDelete])
 
   // Resize start handler - only on resize handle, but captures on parent
   const handleResizePointerDown = useCallback((e: React.PointerEvent) => {
     if (!isSelected || !onResize) return
     e.stopPropagation()
+
+    // Clear long-press timer
+    clearLongPressTimer()
 
     resizeStartX.current = e.clientX
     setIsResizing(true)
@@ -119,9 +312,9 @@ export function TimelineBlock({
     if (blockElement) {
       blockElement.setPointerCapture(e.pointerId)
     }
-  }, [isSelected, onResize])
+  }, [isSelected, onResize, clearLongPressTimer])
 
-  const isInteracting = isDragging || isResizing
+  const isInteracting = isDragging || isResizing || activePointers.current.size > 1
 
   return (
     <div
@@ -201,6 +394,63 @@ export function TimelineBlock({
         >
           <X className="h-3.5 w-3.5" />
         </button>
+      )}
+
+      {/* Long-press context menu */}
+      {showContextMenu && (
+        <>
+          {/* Backdrop to close menu */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setShowContextMenu(false)}
+            onPointerDown={(e) => {
+              e.stopPropagation()
+              setShowContextMenu(false)
+            }}
+          />
+
+          {/* Menu */}
+          <div
+            className="fixed z-50 bg-popover border border-border rounded-lg shadow-lg overflow-hidden"
+            style={{
+              left: `${contextMenuPos.x}px`,
+              top: `${contextMenuPos.y}px`,
+              transform: 'translate(-50%, -100%) translateY(-8px)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {onEdit && (
+              <button
+                type="button"
+                onClick={() => handleContextMenuAction('edit')}
+                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm hover:bg-accent transition-colors text-left"
+              >
+                <Edit3 className="h-4 w-4" />
+                <span>Edit</span>
+              </button>
+            )}
+            {onDuplicate && (
+              <button
+                type="button"
+                onClick={() => handleContextMenuAction('duplicate')}
+                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm hover:bg-accent transition-colors text-left"
+              >
+                <Copy className="h-4 w-4" />
+                <span>Duplicate</span>
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => handleContextMenuAction('delete')}
+                className="flex items-center gap-2 w-full px-4 py-2.5 text-sm hover:bg-destructive/10 text-destructive transition-colors text-left"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Delete</span>
+              </button>
+            )}
+          </div>
+        </>
       )}
     </div>
   )

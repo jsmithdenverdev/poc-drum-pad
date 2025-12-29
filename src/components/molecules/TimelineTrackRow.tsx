@@ -11,11 +11,13 @@ interface TimelineTrackRowProps {
   currentMeasure: number
   isPlaying: boolean
   selectedBlockId: string | null
+  height?: number
   onCellClick: (measure: number) => void
   onBlockClick: (block: TimelineBlockType) => void
   onBlockDelete: (blockId: string) => void
   onBlockMove: (blockId: string, deltaMeasures: number) => void
   onBlockResize?: (blockId: string, deltaMeasures: number) => void
+  onBlockDuplicate?: (blockId: string) => void
   className?: string
 }
 
@@ -27,6 +29,7 @@ export function TimelineTrackRow({
   currentMeasure,
   isPlaying,
   selectedBlockId,
+  height = 50,
   onCellClick,
   onBlockClick,
   onBlockDelete,
@@ -46,7 +49,7 @@ export function TimelineTrackRow({
   return (
     <div
       className={cn('relative flex', className)}
-      style={{ height: '50px' }}
+      style={{ height: `${height}px` }}
     >
       {/* Grid cells - clickable empty spaces */}
       <div className="absolute inset-0 flex">
@@ -60,10 +63,10 @@ export function TimelineTrackRow({
               type="button"
               onClick={() => onCellClick(measure)}
               className={cn(
-                'border-r border-border/30 transition-colors relative',
-                isBarLine && 'border-r-border/60',
+                'border-r transition-colors relative',
+                isBarLine ? 'border-r-border border-r-2' : 'border-r-border/30',
                 isCurrent && 'bg-primary/10',
-                !isCurrent && (isBarLine ? 'bg-muted/20' : 'bg-background'),
+                !isCurrent && (isBarLine ? 'bg-muted/30' : 'bg-background'),
                 'hover:bg-muted/40'
               )}
               style={{ width: `${measureWidth}px` }}

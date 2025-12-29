@@ -1,25 +1,29 @@
 import { cn } from '@/lib/utils';
-import { Plus, VolumeX, Volume2, X } from 'lucide-react';
+import { Plus, VolumeX, Volume2, X, ListPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { TimelineTrack } from '@/types/audio.types';
 
 interface TimelineSidebarProps {
   tracks: TimelineTrack[];
   selectedTrackId: string | null;
+  trackHeight?: number;
   onTrackSelect: (trackId: string) => void;
   onAddTrack: () => void;
   onDeleteTrack: (trackId: string) => void;
   onToggleMute: (trackId: string) => void;
+  onAddPattern?: () => void;
   className?: string;
 }
 
 export function TimelineSidebar({
   tracks,
   selectedTrackId,
+  trackHeight = 50,
   onTrackSelect,
   onAddTrack,
   onDeleteTrack,
   onToggleMute,
+  onAddPattern,
   className,
 }: TimelineSidebarProps) {
   return (
@@ -38,9 +42,10 @@ export function TimelineSidebar({
             <div
               key={track.id}
               className={cn(
-                'relative flex h-[50px] w-full border-b border-border transition-colors',
+                'relative flex w-full border-b border-border transition-colors',
                 isSelected && 'bg-secondary'
               )}
+              style={{ height: `${trackHeight}px` }}
             >
               <button
                 onClick={() => onTrackSelect(track.id)}
@@ -97,13 +102,28 @@ export function TimelineSidebar({
         })}
       </div>
 
-      {/* Add track button */}
-      <div className="border-t border-border p-2">
+      {/* Action buttons */}
+      <div className="border-t border-border p-2 space-y-2">
+        {/* Add Pattern button - shown when track is selected */}
+        {selectedTrackId && onAddPattern && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onAddPattern}
+            className="h-8 w-full"
+            title="Add pattern to selected track"
+          >
+            <ListPlus className="h-4 w-4" />
+          </Button>
+        )}
+
+        {/* Add track button */}
         <Button
           variant="ghost"
           size="icon"
           onClick={onAddTrack}
           className="h-8 w-full"
+          title="Add new track"
         >
           <Plus className="h-4 w-4" />
         </Button>

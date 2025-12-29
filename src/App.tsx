@@ -8,6 +8,7 @@ import { StepSequencer } from '@/components/organisms/StepSequencer'
 import { Timeline } from '@/components/organisms/Timeline'
 import { PatternPickerModal } from '@/components/organisms/PatternPickerModal'
 import { SavePatternModal } from '@/components/organisms/SavePatternModal'
+import { TimelineBlockActionsSheet } from '@/components/organisms/TimelineBlockActionsSheet'
 import { SequencerConfig } from '@/components/molecules/SequencerConfig'
 import { SynthConfig } from '@/components/molecules/SynthConfig'
 import { PatternSelector } from '@/components/molecules/PatternSelector'
@@ -92,6 +93,7 @@ function AppContent() {
     removeBlock,
     moveBlock,
     resizeBlock,
+    duplicateBlock,
     toggleTimelinePlayback,
     stopTimeline,
     restartTimeline,
@@ -105,6 +107,10 @@ function AppContent() {
   } | null>(null)
   const [justSaved, setJustSaved] = useState(false)
   const [saveModalOpen, setSaveModalOpen] = useState(false)
+
+  // Block actions sheet state
+  const [blockActionsSheetOpen, setBlockActionsSheetOpen] = useState(false)
+  const [selectedBlockTrackId, setSelectedBlockTrackId] = useState<string | null>(null)
 
   // Swipe tracking for instruments
   const instrumentTouchStartX = useRef<number | null>(null)
