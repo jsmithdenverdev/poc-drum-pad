@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
-import type { Timeline, TimelineTrack, TimelineBlock, SavedPattern, SequencerPattern } from '@/types/audio.types'
+import type { Timeline, TimelineTrack, TimelineBlock, SavedPattern, SequencerPattern, Scene } from '@/types/audio.types'
 import { TIMELINE_TRACK_COLORS } from '@/types/audio.types'
 import { audioEngine } from '@/audio/audio-engine'
 import { audioContextManager } from '@/audio/audio-context-manager'
@@ -42,12 +42,23 @@ interface TimelineContextValue {
   setSelectedMeasure: (measure: number | null) => void
   selectedBlock: TimelineBlock | null
   setSelectedBlock: (block: TimelineBlock | null) => void
+
+  // Scene management
+  scenes: Scene[]
+  selectedSceneId: string | null
+  setSelectedSceneId: (sceneId: string | null) => void
+  addScene: (name?: string) => Scene
+  removeScene: (sceneId: string) => void
+  duplicateScene: (sceneId: string) => Scene
+  updateScene: (sceneId: string, updates: Partial<Omit<Scene, 'id'>>) => void
+  setScenePattern: (sceneId: string, trackId: string, patternId: string) => void
 }
 
 const TimelineContext = createContext<TimelineContextValue | undefined>(undefined)
 
 const TIMELINE_STORAGE_KEY = 'drum-pad-timeline'
 const PATTERNS_STORAGE_KEY = 'drum-pad-saved-patterns'
+const SCENES_STORAGE_KEY = 'drum-pad-scenes'
 const SAVE_DEBOUNCE_MS = 500
 
 // Generate unique ID
@@ -114,6 +125,20 @@ function loadPatternsFromStorage(): SavedPattern[] {
   }
 }
 
+// Load scenes from localStorage
+function loadScenesFromStorage(): Scene[] {
+  if (!isLocalStorageAvailable()) {
+    return []
+  }
+  try {
+    const stored = localStorage.getItem(SCENES_STORAGE_KEY)
+    if (!stored) return []
+    return JSON.parse(stored) as Scene[]
+  } catch {
+    return []
+  }
+}
+
 // Save timeline to localStorage
 function saveTimelineToStorage(timeline: Timeline): void {
   if (!isLocalStorageAvailable()) return
@@ -134,20 +159,33 @@ function savePatternsToStorage(patterns: SavedPattern[]): void {
   }
 }
 
+// Save scenes to localStorage
+function saveScenesToStorage(scenes: Scene[]): void {
+  if (!isLocalStorageAvailable()) return
+  try {
+    localStorage.setItem(SCENES_STORAGE_KEY, JSON.stringify(scenes))
+  } catch (error) {
+    console.error('Failed to save scenes:', error)
+  }
+}
+
 const MEASURE_COUNT = 16
 
 export function TimelineProvider({ children }: { children: ReactNode }) {
   const [timeline, setTimeline] = useState<Timeline>(loadTimelineFromStorage)
   const [savedPatterns, setSavedPatterns] = useState<SavedPattern[]>(loadPatternsFromStorage)
+  const [scenes, setScenes] = useState<Scene[]>(loadScenesFromStorage)
   const [currentMeasure, setCurrentMeasure] = useState(0)
   const [playbackPosition, setPlaybackPosition] = useState(0)
   const [isTimelinePlaying, setIsTimelinePlaying] = useState(false)
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null)
   const [selectedMeasure, setSelectedMeasure] = useState<number | null>(null)
   const [selectedBlock, setSelectedBlock] = useState<TimelineBlock | null>(null)
+  const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null)
 
   const saveTimelineTimeoutRef = useRef<number | null>(null)
   const savePatternsTimeoutRef = useRef<number | null>(null)
+  const saveScenesTimeoutRef = useRef<number | null>(null)
   const animationFrameRef = useRef<number | null>(null)
   const playbackStartTimeRef = useRef<number | null>(null)
   const playbackStartPositionRef = useRef<number>(0)
@@ -183,6 +221,21 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [savedPatterns])
+
+  // Debounced save for scenes
+  useEffect(() => {
+    if (saveScenesTimeoutRef.current !== null) {
+      window.clearTimeout(saveScenesTimeoutRef.current)
+    }
+    saveScenesTimeoutRef.current = window.setTimeout(() => {
+      saveScenesToStorage(scenes)
+    }, SAVE_DEBOUNCE_MS)
+    return () => {
+      if (saveScenesTimeoutRef.current !== null) {
+        window.clearTimeout(saveScenesTimeoutRef.current)
+      }
+    }
+  }, [scenes])
 
   // Timeline playback - smooth animation using requestAnimationFrame
   useEffect(() => {
@@ -518,6 +571,63 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
     }
   }, [isTimelinePlaying])
 
+  // Add a new scene
+  const addScene = useCallback((name?: string): Scene => {
+    const sceneCount = scenes.length
+    const newScene: Scene = {
+      id: generateId(),
+      name: name || `Scene ${sceneCount + 1}`,
+      duration: 16,
+      trackPatterns: {},
+    }
+    setScenes(prev => [...prev, newScene])
+    return newScene
+  }, [scenes.length])
+
+  // Remove a scene
+  const removeScene = useCallback((sceneId: string) => {
+    setScenes(prev => prev.filter(s => s.id !== sceneId))
+    if (selectedSceneId === sceneId) {
+      setSelectedSceneId(null)
+    }
+  }, [selectedSceneId])
+
+  // Duplicate a scene
+  const duplicateScene = useCallback((sceneId: string): Scene => {
+    const scene = scenes.find(s => s.id === sceneId)
+    if (!scene) {
+      throw new Error('Scene not found')
+    }
+    const newScene: Scene = {
+      ...scene,
+      id: generateId(),
+      name: `${scene.name} (copy)`,
+      trackPatterns: { ...scene.trackPatterns },
+    }
+    setScenes(prev => [...prev, newScene])
+    return newScene
+  }, [scenes])
+
+  // Update scene properties
+  const updateScene = useCallback((sceneId: string, updates: Partial<Omit<Scene, 'id'>>) => {
+    setScenes(prev =>
+      prev.map(s =>
+        s.id === sceneId ? { ...s, ...updates } : s
+      )
+    )
+  }, [])
+
+  // Set pattern for a specific track in a scene
+  const setScenePattern = useCallback((sceneId: string, trackId: string, patternId: string) => {
+    setScenes(prev =>
+      prev.map(s =>
+        s.id === sceneId
+          ? { ...s, trackPatterns: { ...s.trackPatterns, [trackId]: patternId } }
+          : s
+      )
+    )
+  }, [])
+
   return (
     <TimelineContext.Provider
       value={{
@@ -547,6 +657,14 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
         setSelectedMeasure,
         selectedBlock,
         setSelectedBlock,
+        scenes,
+        selectedSceneId,
+        setSelectedSceneId,
+        addScene,
+        removeScene,
+        duplicateScene,
+        updateScene,
+        setScenePattern,
       }}
     >
       {children}

@@ -95,6 +95,12 @@ function AppContent() {
     toggleTimelinePlayback,
     stopTimeline,
     restartTimeline,
+    scenes,
+    selectedSceneId,
+    setSelectedSceneId,
+    addScene,
+    removeScene,
+    duplicateScene,
   } = useTimelineContext()
 
   // Pattern picker modal state
@@ -283,6 +289,23 @@ function AppContent() {
       resizeBlock(trackId, blockId, newLength)
     }
   }, [timeline.tracks, resizeBlock])
+
+  // Scene handlers
+  const handleSceneSelect = useCallback((sceneId: string) => {
+    setSelectedSceneId(sceneId)
+  }, [setSelectedSceneId])
+
+  const handleAddScene = useCallback(() => {
+    addScene()
+  }, [addScene])
+
+  const handleDuplicateScene = useCallback((sceneId: string) => {
+    duplicateScene(sceneId)
+  }, [duplicateScene])
+
+  const handleDeleteScene = useCallback((sceneId: string) => {
+    removeScene(sceneId)
+  }, [removeScene])
 
   // Handle init button
   const handleInit = useCallback(async () => {
@@ -561,6 +584,12 @@ function AppContent() {
                 onBlockDelete={handleBlockDelete}
                 onBlockMove={handleBlockMove}
                 onBlockResize={handleBlockResize}
+                scenes={scenes}
+                selectedSceneId={selectedSceneId}
+                onSceneSelect={handleSceneSelect}
+                onAddScene={handleAddScene}
+                onDuplicateScene={handleDuplicateScene}
+                onDeleteScene={handleDeleteScene}
               />
             </div>
           </div>
