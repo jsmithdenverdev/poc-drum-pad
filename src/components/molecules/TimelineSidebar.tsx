@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Plus, VolumeX, Volume2, X } from 'lucide-react';
+import { Plus, VolumeX, Volume2, X, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { TimelineTrack } from '@/types/audio.types';
 
@@ -10,6 +10,8 @@ interface TimelineSidebarProps {
   onAddTrack: () => void;
   onDeleteTrack: (trackId: string) => void;
   onToggleMute: (trackId: string) => void;
+  onAddPattern?: () => void; // Optional callback to add pattern to selected track
+  trackHeight?: number; // Optional custom height per track (defaults to 50px)
   className?: string;
 }
 
@@ -20,6 +22,8 @@ export function TimelineSidebar({
   onAddTrack,
   onDeleteTrack,
   onToggleMute,
+  onAddPattern,
+  trackHeight = 50, // Default to 50px if not specified
   className,
 }: TimelineSidebarProps) {
   return (
@@ -38,9 +42,10 @@ export function TimelineSidebar({
             <div
               key={track.id}
               className={cn(
-                'relative flex h-[50px] w-full border-b border-border transition-colors',
+                'relative flex w-full border-b border-border transition-colors',
                 isSelected && 'bg-secondary'
               )}
+              style={{ height: `${trackHeight}px` }}
             >
               <button
                 onClick={() => onTrackSelect(track.id)}
@@ -96,6 +101,21 @@ export function TimelineSidebar({
           )
         })}
       </div>
+
+      {/* Add pattern button - shown when a track is selected */}
+      {selectedTrackId && onAddPattern && (
+        <div className="border-t border-border p-2">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={onAddPattern}
+            className="h-8 w-full gap-1 text-xs"
+          >
+            <Music className="h-3 w-3" />
+            <span className="text-[10px]">Add</span>
+          </Button>
+        </div>
+      )}
 
       {/* Add track button */}
       <div className="border-t border-border p-2">
