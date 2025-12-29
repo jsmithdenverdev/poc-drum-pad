@@ -16,6 +16,8 @@ interface TimelineTrackRowProps {
   onBlockDelete: (blockId: string) => void
   onBlockMove: (blockId: string, deltaMeasures: number) => void
   onBlockResize?: (blockId: string, deltaMeasures: number) => void
+  onBlockDuplicate?: (blockId: string) => void
+  height?: number // Optional custom height (defaults to 50px)
   className?: string
 }
 
@@ -32,6 +34,8 @@ export function TimelineTrackRow({
   onBlockDelete,
   onBlockMove,
   onBlockResize,
+  onBlockDuplicate,
+  height = 50, // Default to 50px if not specified
   className,
 }: TimelineTrackRowProps) {
   // Create array of measure indices
@@ -46,13 +50,14 @@ export function TimelineTrackRow({
   return (
     <div
       className={cn('relative flex', className)}
-      style={{ height: '50px' }}
+      style={{ height: `${height}px` }}
     >
       {/* Grid cells - clickable empty spaces */}
       <div className="absolute inset-0 flex">
         {measures.map((measure) => {
           const isBarLine = measure % 4 === 0
           const isCurrent = isPlaying && currentMeasure === measure
+          const isFirstMeasure = measure === 0
 
           return (
             <button
@@ -60,10 +65,10 @@ export function TimelineTrackRow({
               type="button"
               onClick={() => onCellClick(measure)}
               className={cn(
-                'border-r border-border/30 transition-colors relative',
-                isBarLine && 'border-r-border/60',
+                'border-r transition-colors relative',
+                isBarLine ? 'border-r-border bg-muted/30' : 'border-r-border/30 bg-background',
+                isFirstMeasure && 'border-l border-l-border',
                 isCurrent && 'bg-primary/10',
-                !isCurrent && (isBarLine ? 'bg-muted/20' : 'bg-background'),
                 'hover:bg-muted/40'
               )}
               style={{ width: `${measureWidth}px` }}
@@ -107,6 +112,8 @@ export function TimelineTrackRow({
                 onDelete={() => onBlockDelete(block.id)}
                 onMove={(delta) => onBlockMove(block.id, delta)}
                 onResize={onBlockResize ? (delta) => onBlockResize(block.id, delta) : undefined}
+                onDuplicate={onBlockDuplicate ? () => onBlockDuplicate(block.id) : undefined}
+                onEdit={() => onBlockClick(block)} // Edit just selects the block for now
               />
             </div>
           )
