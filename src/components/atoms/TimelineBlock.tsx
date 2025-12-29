@@ -16,6 +16,14 @@ interface TimelineBlockProps {
   className?: string
 }
 
+interface PointerInfo {
+  id: number
+  startX: number
+  startY: number
+  currentX: number
+  currentY: number
+}
+
 export function TimelineBlock({
   block,
   patternName,
@@ -36,24 +44,89 @@ export function TimelineBlock({
   const resizeStartX = useRef<number | null>(null)
   const hasMoved = useRef(false)
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (!isSelected || !onMove) return
+  // Multi-touch gesture state
+  const activePointers = useRef<Map<number, PointerInfo>>(new Map())
+  const [pointerCount, setPointerCount] = useState(0)
+  const initialDistance = useRef<number | null>(null)
+  const initialMidpointX = useRef<number | null>(null)
 
-    dragStartX.current = e.clientX
-    hasMoved.current = false
-    setIsDragging(true)
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (!isSelected) return
+
+    // Track this pointer
+    activePointers.current.set(e.pointerId, {
+      id: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      currentX: e.clientX,
+      currentY: e.clientY,
+    })
+    setPointerCount(activePointers.current.size)
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+
+    // If this is a second pointer, initialize multi-touch gestures
+    if (activePointers.current.size === 2) {
+      const pointers = Array.from(activePointers.current.values())
+      const dx = pointers[1].currentX - pointers[0].currentX
+      const dy = pointers[1].currentY - pointers[0].currentY
+      initialDistance.current = Math.sqrt(dx * dx + dy * dy)
+      initialMidpointX.current = (pointers[0].currentX + pointers[1].currentX) / 2
+    } else if (activePointers.current.size === 1 && onMove) {
+      // Single pointer - prepare for drag
+      dragStartX.current = e.clientX
+      hasMoved.current = false
+      setIsDragging(true)
+    }
   }, [isSelected, onMove])
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    // Handle resize
+    // Update pointer position if tracking this pointer
+    const pointer = activePointers.current.get(e.pointerId)
+    if (pointer) {
+      pointer.currentX = e.clientX
+      pointer.currentY = e.clientY
+    }
+
+    // Handle multi-touch gestures (two fingers)
+    if (activePointers.current.size === 2) {
+      const pointers = Array.from(activePointers.current.values())
+
+      // Calculate current distance for pinch
+      const dx = pointers[1].currentX - pointers[0].currentX
+      const dy = pointers[1].currentY - pointers[0].currentY
+      const currentDistance = Math.sqrt(dx * dx + dy * dy)
+
+      // Calculate current midpoint for two-finger drag
+      const currentMidpointX = (pointers[0].currentX + pointers[1].currentX) / 2
+
+      // Two-finger horizontal drag to move
+      if (initialMidpointX.current !== null && onMove) {
+        const midpointDelta = currentMidpointX - initialMidpointX.current
+        if (Math.abs(midpointDelta) > 5) {
+          hasMoved.current = true
+        }
+        setDragOffset(midpointDelta)
+        setIsDragging(true)
+      }
+
+      // Pinch to resize
+      if (initialDistance.current !== null && onResize) {
+        const distanceDelta = currentDistance - initialDistance.current
+        setResizeOffset(distanceDelta)
+        setIsResizing(true)
+      }
+
+      return
+    }
+
+    // Handle single-touch resize (via resize handle)
     if (isResizing && resizeStartX.current !== null) {
       const deltaX = e.clientX - resizeStartX.current
       setResizeOffset(deltaX)
       return
     }
 
-    // Handle drag
+    // Handle single-touch drag (via drag handle)
     if (!isDragging || dragStartX.current === null) return
 
     const deltaX = e.clientX - dragStartX.current
@@ -61,41 +134,59 @@ export function TimelineBlock({
       hasMoved.current = true
     }
     setDragOffset(deltaX)
-  }, [isDragging, isResizing])
+  }, [isDragging, isResizing, onMove, onResize])
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    // Handle resize end
-    if (isResizing) {
-      ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
-      setIsResizing(false)
-
-      if (onResize) {
-        const deltaMeasures = Math.round(resizeOffset / measureWidth)
-        if (deltaMeasures !== 0) {
-          onResize(deltaMeasures)
-        }
-      }
-
-      setResizeOffset(0)
-      resizeStartX.current = null
-      return
-    }
-
-    // Handle drag end
-    if (!isDragging) return
-
+    // Remove this pointer from tracking
+    activePointers.current.delete(e.pointerId)
+    setPointerCount(activePointers.current.size)
     ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
-    setIsDragging(false)
 
-    if (hasMoved.current && onMove) {
-      const deltaMeasures = Math.round(dragOffset / measureWidth)
-      if (deltaMeasures !== 0) {
-        onMove(deltaMeasures)
+    // If all pointers are released, finalize any gesture
+    if (activePointers.current.size === 0) {
+      // Handle resize end
+      if (isResizing) {
+        setIsResizing(false)
+
+        if (onResize) {
+          const deltaMeasures = Math.round(resizeOffset / measureWidth)
+          if (deltaMeasures !== 0) {
+            onResize(deltaMeasures)
+          }
+        }
+
+        setResizeOffset(0)
+        resizeStartX.current = null
+        initialDistance.current = null
       }
-    }
 
-    setDragOffset(0)
-    dragStartX.current = null
+      // Handle drag end
+      if (isDragging) {
+        setIsDragging(false)
+
+        if (hasMoved.current && onMove) {
+          const deltaMeasures = Math.round(dragOffset / measureWidth)
+          if (deltaMeasures !== 0) {
+            onMove(deltaMeasures)
+          }
+        }
+
+        setDragOffset(0)
+        dragStartX.current = null
+        initialMidpointX.current = null
+      }
+
+      hasMoved.current = false
+    } else if (activePointers.current.size === 1) {
+      // Transition from multi-touch to single touch
+      // Reset multi-touch state
+      initialDistance.current = null
+      initialMidpointX.current = null
+      setIsResizing(false)
+      setIsDragging(false)
+      setResizeOffset(0)
+      setDragOffset(0)
+    }
   }, [isDragging, isResizing, dragOffset, resizeOffset, measureWidth, onMove, onResize])
 
   const handleClick = useCallback((e: React.MouseEvent) => {
@@ -122,6 +213,7 @@ export function TimelineBlock({
   }, [isSelected, onResize])
 
   const isInteracting = isDragging || isResizing
+  const isMultiTouch = pointerCount > 1
 
   return (
     <div
@@ -134,11 +226,14 @@ export function TimelineBlock({
         isDragging && 'cursor-grabbing',
         isResizing && 'cursor-ew-resize',
         !isInteracting && 'duration-75',
+        isMultiTouch && 'ring-2 ring-white/50',
         className
       )}
       style={{
         width: isResizing ? `calc(100% + ${resizeOffset}px)` : '100%',
-        background: `radial-gradient(ellipse at 30% 30%, ${color}dd 0%, ${color}aa 50%, ${color}77 100%)`,
+        background: isMultiTouch
+          ? `radial-gradient(ellipse at 30% 30%, ${color}ff 0%, ${color}cc 50%, ${color}99 100%)`
+          : `radial-gradient(ellipse at 30% 30%, ${color}dd 0%, ${color}aa 50%, ${color}77 100%)`,
         boxShadow: isSelected
           ? `0 0 0 2px ${color}, 0 0 12px ${color}80, inset 1px 1px 3px rgba(255,255,255,0.2), inset -1px -1px 3px rgba(0,0,0,0.3)`
           : 'inset 1px 1px 3px rgba(255,255,255,0.15), inset -1px -1px 3px rgba(0,0,0,0.3)',
@@ -153,7 +248,7 @@ export function TimelineBlock({
       onPointerCancel={handlePointerUp}
       role="button"
       tabIndex={0}
-      aria-label={`${patternName} block, ${block.lengthMeasures} measures at measure ${block.startMeasure + 1}${isSelected ? ', selected' : ''}`}
+      aria-label={`${patternName} block, ${block.lengthMeasures} measures at measure ${block.startMeasure + 1}${isSelected ? ', selected' : ''}${isMultiTouch ? ', multi-touch active' : ''}`}
       aria-pressed={isSelected}
     >
       <span
@@ -164,6 +259,17 @@ export function TimelineBlock({
       >
         {patternName}
       </span>
+
+      {/* Multi-touch gesture indicator */}
+      {isMultiTouch && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="px-2 py-1 rounded bg-black/60 backdrop-blur-sm border border-white/30">
+            <span className="text-[10px] font-semibold text-white">
+              {isDragging && isResizing ? '2-Finger Move + Resize' : isDragging ? '2-Finger Move' : isResizing ? 'Pinch Resize' : '2-Finger'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Drag handle - visible when selected */}
       {isSelected && onMove && !isInteracting && (
