@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
-import type { Timeline, TimelineTrack, TimelineBlock, SavedPattern, SequencerPattern } from '@/types/audio.types'
+import type { Timeline, TimelineTrack, TimelineBlock, SavedPattern, SequencerPattern, Scene, SceneDuration } from '@/types/audio.types'
 import { TIMELINE_TRACK_COLORS } from '@/types/audio.types'
 import { audioEngine } from '@/audio/audio-engine'
 import { audioContextManager } from '@/audio/audio-context-manager'
@@ -27,6 +27,16 @@ interface TimelineContextValue {
   moveBlock: (trackId: string, blockId: string, newStartMeasure: number) => void
   resizeBlock: (trackId: string, blockId: string, newLength: number) => void
   duplicateBlock: (trackId: string, blockId: string) => void
+
+  // Scene management
+  scenes: Scene[]
+  selectedSceneId: string | null
+  setSelectedSceneId: (sceneId: string | null) => void
+  addScene: (name?: string) => Scene
+  removeScene: (sceneId: string) => void
+  duplicateScene: (sceneId: string) => void
+  updateScene: (sceneId: string, updates: Partial<Omit<Scene, 'id'>>) => void
+  setScenePattern: (sceneId: string, trackId: string, patternId: string | null) => void
 
   // Playback state
   currentMeasure: number
@@ -146,6 +156,8 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null)
   const [selectedMeasure, setSelectedMeasure] = useState<number | null>(null)
   const [selectedBlock, setSelectedBlock] = useState<TimelineBlock | null>(null)
+  const [scenes, setScenes] = useState<Scene[]>([])
+  const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null)
 
   const saveTimelineTimeoutRef = useRef<number | null>(null)
   const savePatternsTimeoutRef = useRef<number | null>(null)
@@ -511,6 +523,69 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
     }))
   }, [])
 
+  // Add a new scene
+  const addScene = useCallback((name?: string): Scene => {
+    const sceneCount = scenes.length
+    const newScene: Scene = {
+      id: generateId(),
+      name: name || `Scene ${sceneCount + 1}`,
+      duration: 4 as SceneDuration,
+      trackPatterns: {},
+    }
+    setScenes(prev => [...prev, newScene])
+    return newScene
+  }, [scenes.length])
+
+  // Remove a scene
+  const removeScene = useCallback((sceneId: string) => {
+    setScenes(prev => prev.filter(s => s.id !== sceneId))
+    if (selectedSceneId === sceneId) {
+      setSelectedSceneId(null)
+    }
+  }, [selectedSceneId])
+
+  // Duplicate a scene
+  const duplicateScene = useCallback((sceneId: string) => {
+    setScenes(prev => {
+      const sceneIndex = prev.findIndex(s => s.id === sceneId)
+      if (sceneIndex === -1) return prev
+
+      const originalScene = prev[sceneIndex]
+      const newScene: Scene = {
+        ...originalScene,
+        id: generateId(),
+        name: `${originalScene.name} (copy)`,
+      }
+
+      const newScenes = [...prev]
+      newScenes.splice(sceneIndex + 1, 0, newScene)
+      return newScenes
+    })
+  }, [])
+
+  // Update scene properties
+  const updateScene = useCallback((sceneId: string, updates: Partial<Omit<Scene, 'id'>>) => {
+    setScenes(prev => prev.map(s =>
+      s.id === sceneId ? { ...s, ...updates } : s
+    ))
+  }, [])
+
+  // Set pattern for a track in a scene
+  const setScenePattern = useCallback((sceneId: string, trackId: string, patternId: string | null) => {
+    setScenes(prev => prev.map(s => {
+      if (s.id !== sceneId) return s
+
+      const newTrackPatterns = { ...s.trackPatterns }
+      if (patternId) {
+        newTrackPatterns[trackId] = patternId
+      } else {
+        delete newTrackPatterns[trackId]
+      }
+
+      return { ...s, trackPatterns: newTrackPatterns }
+    }))
+  }, [])
+
   // Toggle timeline playback (play/pause)
   const toggleTimelinePlayback = useCallback(() => {
     if (isTimelinePlaying) {
@@ -563,6 +638,14 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
         moveBlock,
         resizeBlock,
         duplicateBlock,
+        scenes,
+        selectedSceneId,
+        setSelectedSceneId,
+        addScene,
+        removeScene,
+        duplicateScene,
+        updateScene,
+        setScenePattern,
         currentMeasure,
         playbackPosition,
         isTimelinePlaying,

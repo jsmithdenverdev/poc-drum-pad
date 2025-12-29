@@ -669,6 +669,28 @@ function AppContent() {
         onSave={handleSavePattern}
         defaultName={pattern.name}
       />
+
+      {/* Block Actions Sheet (Option 2) */}
+      <TimelineBlockActionsSheet
+        open={blockActionsSheetOpen}
+        onClose={() => {
+          setBlockActionsSheetOpen(false)
+          setSelectedBlock(null)
+        }}
+        block={selectedBlock}
+        trackId={selectedBlockTrackId}
+        patternName={selectedBlock ? savedPatterns.find(p => p.id === selectedBlock.patternId)?.name : undefined}
+        onMove={(trackId, blockId, newStart) => moveBlock(trackId, blockId, newStart)}
+        onResize={(trackId, blockId, newLength) => resizeBlock(trackId, blockId, newLength)}
+        onDuplicate={(trackId, blockId) => {
+          duplicateBlock(trackId, blockId)
+          setBlockActionsSheetOpen(false)
+        }}
+        onDelete={(trackId, blockId) => {
+          removeBlock(trackId, blockId)
+          setBlockActionsSheetOpen(false)
+        }}
+      />
     </>
   )
 }
