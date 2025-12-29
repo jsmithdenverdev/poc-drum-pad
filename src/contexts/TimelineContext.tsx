@@ -26,6 +26,7 @@ interface TimelineContextValue {
   removeBlock: (trackId: string, blockId: string) => void
   moveBlock: (trackId: string, blockId: string, newStartMeasure: number) => void
   resizeBlock: (trackId: string, blockId: string, newLength: number) => void
+  duplicateBlock: (trackId: string, blockId: string) => void
 
   // Playback state
   currentMeasure: number
@@ -484,6 +485,32 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
     }))
   }, [])
 
+  // Duplicate a block
+  const duplicateBlock = useCallback((trackId: string, blockId: string) => {
+    setTimeline(prev => {
+      const track = prev.tracks.find(t => t.id === trackId)
+      if (!track) return prev
+
+      const blockToDuplicate = track.blocks.find(b => b.id === blockId)
+      if (!blockToDuplicate) return prev
+
+      // Create a copy of the block and place it after the original
+      const newBlock: TimelineBlock = {
+        id: generateId(),
+        patternId: blockToDuplicate.patternId,
+        startMeasure: blockToDuplicate.startMeasure + blockToDuplicate.lengthMeasures,
+        lengthMeasures: blockToDuplicate.lengthMeasures,
+      }
+
+      return {
+        ...prev,
+        tracks: prev.tracks.map(t =>
+          t.id === trackId ? { ...t, blocks: [...t.blocks, newBlock] } : t
+        ),
+      }
+    })
+  }, [])
+
   // Toggle timeline playback (play/pause)
   const toggleTimelinePlayback = useCallback(() => {
     if (isTimelinePlaying) {
@@ -535,6 +562,7 @@ export function TimelineProvider({ children }: { children: ReactNode }) {
         removeBlock,
         moveBlock,
         resizeBlock,
+        duplicateBlock,
         currentMeasure,
         playbackPosition,
         isTimelinePlaying,

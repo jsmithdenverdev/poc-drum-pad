@@ -8,6 +8,7 @@ import { StepSequencer } from '@/components/organisms/StepSequencer'
 import { Timeline } from '@/components/organisms/Timeline'
 import { PatternPickerModal } from '@/components/organisms/PatternPickerModal'
 import { SavePatternModal } from '@/components/organisms/SavePatternModal'
+import { TimelineBlockActionsSheet } from '@/components/organisms/TimelineBlockActionsSheet'
 import { SequencerConfig } from '@/components/molecules/SequencerConfig'
 import { SynthConfig } from '@/components/molecules/SynthConfig'
 import { PatternSelector } from '@/components/molecules/PatternSelector'
@@ -92,6 +93,7 @@ function AppContent() {
     removeBlock,
     moveBlock,
     resizeBlock,
+    duplicateBlock,
     toggleTimelinePlayback,
     stopTimeline,
     restartTimeline,
@@ -105,6 +107,10 @@ function AppContent() {
   } | null>(null)
   const [justSaved, setJustSaved] = useState(false)
   const [saveModalOpen, setSaveModalOpen] = useState(false)
+
+  // Block actions sheet state
+  const [blockActionsSheetOpen, setBlockActionsSheetOpen] = useState(false)
+  const [selectedBlockTrackId, setSelectedBlockTrackId] = useState<string | null>(null)
 
   // Swipe tracking for instruments
   const instrumentTouchStartX = useRef<number | null>(null)
@@ -256,8 +262,10 @@ function AppContent() {
     setPendingBlockPlacement(null)
   }, [])
 
-  const handleTimelineBlockClick = useCallback((_trackId: string, block: TimelineBlock) => {
+  const handleTimelineBlockClick = useCallback((trackId: string, block: TimelineBlock) => {
     setSelectedBlock(block)
+    setSelectedBlockTrackId(trackId)
+    setBlockActionsSheetOpen(true)
   }, [setSelectedBlock])
 
   const handleBlockDelete = useCallback((trackId: string, blockId: string) => {
@@ -283,6 +291,27 @@ function AppContent() {
       resizeBlock(trackId, blockId, newLength)
     }
   }, [timeline.tracks, resizeBlock])
+
+  // Block actions sheet handlers
+  const handleSheetMove = useCallback((trackId: string, blockId: string, deltaMeasures: number) => {
+    handleBlockMove(trackId, blockId, deltaMeasures)
+  }, [handleBlockMove])
+
+  const handleSheetResize = useCallback((trackId: string, blockId: string, deltaMeasures: number) => {
+    handleBlockResize(trackId, blockId, deltaMeasures)
+  }, [handleBlockResize])
+
+  const handleSheetDuplicate = useCallback((trackId: string, blockId: string) => {
+    duplicateBlock(trackId, blockId)
+  }, [duplicateBlock])
+
+  const handleSheetDelete = useCallback((trackId: string, blockId: string) => {
+    handleBlockDelete(trackId, blockId)
+  }, [handleBlockDelete])
+
+  const handleSheetClose = useCallback(() => {
+    setBlockActionsSheetOpen(false)
+  }, [])
 
   // Handle init button
   const handleInit = useCallback(async () => {
@@ -646,6 +675,19 @@ function AppContent() {
         onClose={() => setSaveModalOpen(false)}
         onSave={handleSavePattern}
         defaultName={pattern.name}
+      />
+
+      {/* Timeline Block Actions Sheet */}
+      <TimelineBlockActionsSheet
+        open={blockActionsSheetOpen}
+        onClose={handleSheetClose}
+        block={selectedBlock}
+        trackId={selectedBlockTrackId}
+        patternName={selectedBlock ? savedPatterns.find(p => p.id === selectedBlock.patternId)?.name : undefined}
+        onMove={handleSheetMove}
+        onResize={handleSheetResize}
+        onDuplicate={handleSheetDuplicate}
+        onDelete={handleSheetDelete}
       />
     </>
   )
