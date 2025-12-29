@@ -51,6 +51,7 @@ export function TimelineBlock({
   const [resizeOffset, setResizeOffset] = useState(0)
   const [showContextMenu, setShowContextMenu] = useState(false)
   const [contextMenuPos, setContextMenuPos] = useState({ x: 0, y: 0 })
+  const [pointerCount, setPointerCount] = useState(0)
 
   const dragStartX = useRef<number | null>(null)
   const resizeStartX = useRef<number | null>(null)
@@ -97,10 +98,11 @@ export function TimelineBlock({
       y: e.clientY,
     })
 
-    const pointerCount = activePointers.current.size
+    const currentPointerCount = activePointers.current.size
+    setPointerCount(currentPointerCount)
 
     // Single finger - start single-finger drag or long-press
-    if (pointerCount === 1 && isSelected && onMove) {
+    if (currentPointerCount === 1 && isSelected && onMove) {
       dragStartX.current = e.clientX
       hasMoved.current = false
       setIsDragging(true)
@@ -117,7 +119,7 @@ export function TimelineBlock({
     }
 
     // Two fingers - start pinch or two-finger drag
-    if (pointerCount === 2 && isSelected) {
+    if (currentPointerCount === 2 && isSelected) {
       // Cancel any existing single-finger drag
       setIsDragging(false)
       dragStartX.current = null
@@ -142,7 +144,7 @@ export function TimelineBlock({
       })
     }
 
-    const pointerCount = activePointers.current.size
+    const currentPointerCount = activePointers.current.size
 
     // Check if moved too much for long-press
     if (longPressStartPos.current) {
@@ -162,7 +164,7 @@ export function TimelineBlock({
     }
 
     // Two-finger gestures (pinch-to-resize or two-finger drag)
-    if (pointerCount === 2 && isSelected && initialPinchDistance.current !== null) {
+    if (currentPointerCount === 2 && isSelected && initialPinchDistance.current !== null) {
       const pointers = Array.from(activePointers.current.values())
       const currentDistance = getDistance(pointers[0], pointers[1])
       const currentMidpoint = getMidpoint(pointers[0], pointers[1])
@@ -185,7 +187,7 @@ export function TimelineBlock({
     }
 
     // Single-finger drag
-    if (isDragging && dragStartX.current !== null && pointerCount === 1) {
+    if (isDragging && dragStartX.current !== null && currentPointerCount === 1) {
       const deltaX = e.clientX - dragStartX.current
       if (Math.abs(deltaX) > 5) {
         hasMoved.current = true
@@ -198,13 +200,14 @@ export function TimelineBlock({
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     // Remove this pointer from tracking
     activePointers.current.delete(e.pointerId)
-    const pointerCount = activePointers.current.size
+    const currentPointerCount = activePointers.current.size
+    setPointerCount(currentPointerCount)
 
     // Clear long-press timer on pointer up
     clearLongPressTimer()
 
     // Handle resize end (from resize handle)
-    if (isResizing && pointerCount === 0) {
+    if (isResizing && currentPointerCount === 0) {
       ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
       setIsResizing(false)
 
@@ -222,7 +225,7 @@ export function TimelineBlock({
     }
 
     // Handle two-finger gesture end
-    if (pointerCount === 0 && (initialPinchDistance.current !== null || initialPinchMidpoint.current !== null)) {
+    if (currentPointerCount === 0 && (initialPinchDistance.current !== null || initialPinchMidpoint.current !== null)) {
       // Apply pinch-to-resize
       if (onResize && resizeOffset !== 0) {
         const deltaMeasures = Math.round(resizeOffset / measureWidth)
@@ -250,7 +253,7 @@ export function TimelineBlock({
     }
 
     // Handle single-finger drag end
-    if (isDragging && pointerCount === 0) {
+    if (isDragging && currentPointerCount === 0) {
       ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
       setIsDragging(false)
 
@@ -314,7 +317,7 @@ export function TimelineBlock({
     }
   }, [isSelected, onResize, clearLongPressTimer])
 
-  const isInteracting = isDragging || isResizing || activePointers.current.size > 1
+  const isInteracting = isDragging || isResizing || pointerCount > 1
 
   return (
     <div

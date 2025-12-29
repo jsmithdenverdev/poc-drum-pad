@@ -40,7 +40,9 @@ export function TimelineBlockActionsSheet({
   // Update local state when block changes
   useEffect(() => {
     if (block) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLocalPosition(block.startMeasure)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLocalLength(block.lengthMeasures)
     }
   }, [block])
